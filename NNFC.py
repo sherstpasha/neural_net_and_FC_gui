@@ -14,10 +14,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import scale
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import f1_score, accuracy_score
-import warnings
-
-warnings.filterwarnings("ignore", category=FutureWarning)
-import os
 
 import tkinter as tk
 from tkinter import filedialog
@@ -36,6 +32,10 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import networkx as nx
+
+import warnings
+
+warnings.filterwarnings("ignore")
 
 
 def sigma(x):
@@ -850,7 +850,7 @@ class GPNN:
             return ind2
 
     def __update_statistic(self, fitness):
-        self.stats = self.stats.append(
+        self.stats = self.stats._append(
             {
                 "max": fitness.max(),
                 "min": fitness.min(),
@@ -940,7 +940,7 @@ class selfCGPNN(GPNN):
         }
 
     def __update_statistic(self, fitness, m_proba, c_proba, s_proba, r_proba):
-        self.stats["fitness"] = self.stats["fitness"].append(
+        self.stats["fitness"] = self.stats["fitness"]._append(
             {
                 "max": fitness.max(),
                 "min": fitness.min(),
@@ -953,7 +953,7 @@ class selfCGPNN(GPNN):
         for proba, oper in zip(
             [m_proba, c_proba, s_proba, r_proba], self.operators_list
         ):
-            self.stats["proba"][oper] = self.stats["proba"][oper].append(
+            self.stats["proba"][oper] = self.stats["proba"][oper]._append(
                 proba.copy(), ignore_index=True
             )
 
@@ -1839,7 +1839,7 @@ class SelfGPFLClassifier:
         return fitnes_value, rbase
 
     def __update_statistic(self, fitness, m_proba, c_proba, s_proba):
-        self.stats["fitness"] = self.stats["fitness"].append(
+        self.stats["fitness"] = self.stats["fitness"]._append(
             {
                 "max": fitness.max(),
                 "min": fitness.min(),
@@ -1850,7 +1850,7 @@ class SelfGPFLClassifier:
         )
 
         for proba, oper in zip([m_proba, c_proba, s_proba], self.operators_list):
-            self.stats["proba"][oper] = self.stats["proba"][oper].append(
+            self.stats["proba"][oper] = self.stats["proba"][oper]._append(
                 proba.copy(), ignore_index=True
             )
 
