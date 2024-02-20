@@ -1,0 +1,8 @@
+numpy==1.21.6
+deap==1.4.1
+scipy==1.7.3
+pandas==1.3.5
+scikit-learn==1.0.2
+tk
+pandastable
+networkx
