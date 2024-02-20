@@ -30,10 +30,11 @@ from sklearn.preprocessing import LabelEncoder
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
-import networkx as nx
+import os
 
 import warnings
+
+import networkx as nx
 
 warnings.filterwarnings("ignore")
 
@@ -771,19 +772,20 @@ class GPNN:
         return some_net
 
     def uniform_mutation(self, some_net, proba):
-        some_net = copy.deepcopy(some_net)
-        proba = proba / len(some_net)
-        for i, node in enumerate(some_net[1:]):
+        some_net_copy = copy.deepcopy(some_net)
+        proba = proba / len(some_net_copy)
+        for i, node in enumerate(some_net_copy[1:]):
             i = i + 1
             if np.random.random() < proba:
-                slice_ = some_net.searchSubtree(i)
+                slice_ = some_net_copy.searchSubtree(i)
                 type_ = node.ret
-                some_net[slice_] = self.expr_mut(
-                    pset=self.pset, type_=type_, len_=len(some_net[slice_])
+                some_net_copy[slice_] = self.expr_mut(
+                    pset=self.pset, type_=type_, len_=len(some_net_copy[slice_])
                 )
                 break
-
-        return some_net
+        if some_net_copy.height > self.max_height:
+            return copy.deepcopy(some_net)
+        return some_net_copy
 
     def rank_selection(self, population, fitness):
         ranks = rankdata(fitness)
@@ -816,12 +818,15 @@ class GPNN:
 
         return copy.deepcopy(offspring), fitness[ind][0]
 
-    @staticmethod
-    def standart_crossing(ind_1, ind_2):
+    def standart_crossing(self, ind_1, ind_2):
         offs_1, offs_2 = gp.cxOnePoint(copy.deepcopy(ind_1), copy.deepcopy(ind_2))
         if np.random.random() > 0.5:
+            if offs_1.height > self.max_height:
+                return copy.deepcopy(ind_1)
             return offs_1
         else:
+            if offs_2.height > self.max_height:
+                return copy.deepcopy(ind_2)
             return offs_2
 
     def one_point_crossing(self, ind1, ind2):
@@ -894,10 +899,7 @@ class GPNN:
         net.fit_SelfCGA(X_train, y_train, 12, n_size, n_iters)
         proba = net.forward(X_test)
 
-        fitnes_value = 1 / (
-            1 + cat_crossentropy(y_test, proba) + 0.00001 * complexity + 0.1 * fine_h
-        )
-
+        fitnes_value = 1 / (1 + cat_crossentropy(y_test, proba))
         return fitnes_value, net
 
     def predict(self, X):
@@ -1428,9 +1430,7 @@ class Rulebase:
         def function(x):
             return self.get_fitness(grid_model.transform(x), some_X, some_y)
 
-        model_opt = SelfCGA(
-            function, iters, pop_size, np.sum(parts), tour_size=tour_size
-        )
+        model_opt = SelfCGA(function, 0, tour_size, np.sum(parts), tour_size=tour_size)
 
         model_opt.fit()
 
@@ -1730,19 +1730,20 @@ class SelfGPFLClassifier:
         return some_net
 
     def uniform_mutation(self, some_net, proba):
-        some_net = copy.deepcopy(some_net)
-        proba = proba / len(some_net)
-        for i, node in enumerate(some_net[1:]):
+        some_net_copy = copy.deepcopy(some_net)
+        proba = proba / len(some_net_copy)
+        for i, node in enumerate(some_net_copy[1:]):
             i = i + 1
             if np.random.random() < proba:
-                slice_ = some_net.searchSubtree(i)
+                slice_ = some_net_copy.searchSubtree(i)
                 type_ = node.ret
-                some_net[slice_] = self.expr_mut(
-                    pset=self.pset, type_=type_, len_=len(some_net[slice_])
+                some_net_copy[slice_] = self.expr_mut(
+                    pset=self.pset, type_=type_, len_=len(some_net_copy[slice_])
                 )
                 break
-
-        return some_net
+        if some_net_copy.height > self.max_height:
+            return copy.deepcopy(some_net)
+        return some_net_copy
 
     def rank_selection(self, population, fitness):
         ranks = rankdata(fitness)
@@ -1775,12 +1776,15 @@ class SelfGPFLClassifier:
 
         return copy.deepcopy(offspring), fitness[ind][0]
 
-    @staticmethod
-    def standart_crossing(ind_1, ind_2):
+    def standart_crossing(self, ind_1, ind_2):
         offs_1, offs_2 = gp.cxOnePoint(copy.deepcopy(ind_1), copy.deepcopy(ind_2))
         if np.random.random() > 0.5:
+            if offs_1.height > self.max_height:
+                return copy.deepcopy(ind_1)
             return offs_1
         else:
+            if offs_2.height > self.max_height:
+                return copy.deepcopy(ind_2)
             return offs_2
 
     def one_point_crossing(self, ind1, ind2):
@@ -1831,9 +1835,7 @@ class SelfGPFLClassifier:
         len_ = len(rbase.rules)
 
         predict = rbase.predict(X_test, rbase.terms_borders)[0]
-        fitnes_value = (
-            f1_score(y_test, predict, average="macro") - 0.01 * fine_h - 0.01 * len_
-        )
+        fitnes_value = f1_score(y_test, predict, average="macro")
         (n_iters, n_size, fitnes_value, res.thefittest["fitness"], height)
 
         return fitnes_value, rbase
@@ -2095,7 +2097,7 @@ def print_net(net, show_edge=False, ax=None, in_dict=None):
     w_colors[:, 3][cond] = 0.1
 
     positions = dict(zip(G.nodes, positions))
-
+    positions = {int(k): v for k, v in positions.items()}
     if type(in_dict) != type(None):
         labels = {
             **dict(zip(net.inputs, list(in_dict.keys()))),
@@ -2154,11 +2156,42 @@ def show_table(data_frame):
 def data_open_file():
     global data
     file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+
+    nn_info_widget.config(state=tk.NORMAL)
+    nn_info_widget.insert(
+        tk.END, "Файл с данными для обучения:" + os.path.basename(file_path) + "\n"
+    )
+    nn_info_widget.config(state=tk.DISABLED)
+    fc_info_widget.config(state=tk.NORMAL)
+    fc_info_widget.insert(
+        tk.END, "Файл с данными для обучения:" + os.path.basename(file_path) + "\n"
+    )
+    fc_info_widget.config(state=tk.DISABLED)
+
     if file_path:
         data = pd.read_csv(file_path)
         show_table(data)
         nn_fit_start_button.config(state=tk.NORMAL)
         fc_fit_start_button.config(state=tk.NORMAL)
+        fc_use_nn_inputs_checkbox.config(state=tk.NORMAL)
+
+
+def data_open_file_predict():
+    global data_predict
+    file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+
+    nn_info_widget_predict.config(state=tk.NORMAL)
+    nn_info_widget_predict.insert(
+        tk.END, "Файл с данными для тестирования:" + os.path.basename(file_path) + "\n"
+    )
+    nn_info_widget_predict.config(state=tk.DISABLED)
+    # fc_info_widget.config(state=tk.NORMAL)
+    # fc_info_widget.insert(tk.END, "Файл с данными для обучения:" + filename_data + "\n")
+    # fc_info_widget.config(state=tk.DISABLED)
+
+    if file_path:
+        data_predict = pd.read_csv(file_path)
+        show_table(data_predict)
 
 
 def nn_save_model():
@@ -2171,6 +2204,12 @@ def nn_save_model():
         if file_path:
             with open(file_path, "wb") as file:
                 pickle.dump(nn_model, file)
+
+            nn_info_widget.config(state=tk.NORMAL)
+            nn_info_widget.insert(
+                tk.END, "Сеть сохранена в:" + os.path.basename(file_path) + "\n"
+            )
+            nn_info_widget.config(state=tk.DISABLED)
 
 
 def fc_save_model():
@@ -2193,6 +2232,12 @@ def fc_save_model():
             with open(file_path, "wb") as file:
                 pickle.dump(fc_model, file)
 
+        nn_info_widget.config(state=tk.NORMAL)
+        nn_info_widget.insert(
+            tk.END, "Нечеткая система сохранена в:" + os.path.basename(file_path) + "\n"
+        )
+        nn_info_widget.config(state=tk.DISABLED)
+
 
 def nn_save_all_stats():
     file_path = filedialog.asksaveasfilename(
@@ -2204,7 +2249,25 @@ def nn_save_all_stats():
     if file_path:
         # Сохраняем DataFrame в выбранный файл
         nn_all_stats.to_csv(file_path, index=False)
-        print(f"DataFrame saved to {file_path}")
+
+        nn_info_widget.config(state=tk.NORMAL)
+        nn_info_widget.insert(
+            tk.END, "Статистика сохранена в:" + os.path.basename(file_path) + "\n"
+        )
+        nn_info_widget.config(state=tk.DISABLED)
+
+
+def nn_save_print_net():
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".png",
+        filetypes=[("PNG files", "*.png")],
+        initialfile="net.png",
+    )
+    net = nn_model.thefittest["net"]
+
+    print_net(net)
+    plt.savefig(file_path)
+    plt.close()
 
 
 def fc_save_all_stats():
@@ -2225,6 +2288,12 @@ def fc_save_all_stats():
         # Сохраняем DataFrame в выбранный файл
         fc_all_stats.to_csv(file_path, index=False)
         print(f"DataFrame saved to {file_path}")
+
+        fc_info_widget.config(state=tk.NORMAL)
+        fc_info_widget.insert(
+            tk.END, "Статистика сохранена в:" + os.path.basename(file_path) + "\n"
+        )
+        fc_info_widget.config(state=tk.DISABLED)
 
 
 def nn_start_fit():
@@ -2248,9 +2317,9 @@ def nn_start_fit():
         )
 
         def run_algorithm():
-            global X_scaled_NN
-            global columns_NN
-            global y_NN
+            # global X_scaled_NN
+            # global columns_NN
+            # global y_NN
             global nn_all_stats
 
             nn_fit_start_button.config(state=tk.DISABLED)
@@ -2259,8 +2328,10 @@ def nn_start_fit():
             X_ = data.loc[:, data.columns != "class"].values
             labels = data["class"].values
 
-            label_encoder = LabelEncoder()
-            y = label_encoder.fit_transform(labels)
+            label_encoder_nn = LabelEncoder()
+            y = label_encoder_nn.fit_transform(labels)
+
+            nn_model.label_encoder = label_encoder_nn
 
             X_scaled = scale(X_)
             columns = list(data.columns)
@@ -2293,6 +2364,13 @@ def nn_start_fit():
                 axis=1,
             )
             nn_save_stat_button.config(state=tk.NORMAL)
+            nn_save_png_button.config(state=tk.NORMAL)
+
+            f_1 = f1_score(y, y_NN, average="macro")
+
+            nn_info_widget.config(state=tk.NORMAL)
+            nn_info_widget.insert(tk.END, "f1-score (обучения):" + str(f_1) + "\n")
+            nn_info_widget.config(state=tk.DISABLED)
 
         # Запуск алгоритма в отдельном потоке
         algorithm_thread = Thread(target=run_algorithm)
@@ -2306,15 +2384,15 @@ def fc_start_fit():
         pop_size = int(fc_pop_size_entry.get())
         tour_size = int(fc_tour_size_entry.get())
         num_fuzzy_vars = int(fc_num_fuzzy_vars_entry.get())
-        min_res = int(fc_resources_entry.get())
-        max_res = int(fc_resources_entry.get())
+        min_res = 0
+        max_res = 0
         global fc_model
 
         # Обновление значения атрибута iters в объекте SelfGPFLClassifier
         fc_model = SelfGPFLClassifier(
             iters,
             pop_size,
-            max_height=10,
+            max_height=15,
             tour_size=tour_size,
             min_res=min_res,
             max_res=max_res,
@@ -2323,15 +2401,44 @@ def fc_start_fit():
         def run_algorithm_fuzzy():
             global fc_all_stats
             global trained_on_nn_data
+            global label_encoder_fc
 
             if fc_use_nn_inputs_var.get() == 1:  # 1 - чекбокс включен, 0 - выключен
+                file_path = filedialog.askopenfilename(
+                    title="Выбрать файл модели",
+                    filetypes=[("Pickle files", "*.pkl")],
+                )
+                if file_path:
+                    global nn_model_
+                    # Здесь вы можете добавить код для загрузки модели
+                    nn_model_ = load_model(file_path)
+                    print(f"Модель загружена из файла: {file_path}")
+
+                X_ = data.loc[:, data.columns != "class"].values
+                labels = data["class"].values
+
+                label_encoder_fc = LabelEncoder()
+
+                X_scaled = scale(X_)
+                columns = list(data.columns)
+
+                net = nn_model_.thefittest["net"]
+                mask = list(net.inputs)
+                mask.sort()
+                X_scaled_NN = X_scaled[:, mask[:-1]]
+                columns_NN = np.array(columns, dtype=object)[mask[:-1]]
+                y_NN = net.predict(X_scaled)
+
                 nn_fit_start_button.config(state=tk.DISABLED)
                 fc_fit_start_button.config(state=tk.DISABLED)
 
                 labels = data["class"].values
 
-                label_encoder = LabelEncoder()
-                label_encoder.fit(labels)
+                label_encoder_fc = LabelEncoder()
+                label_encoder_fc.fit(labels)
+
+                fc_model.label_encoder = label_encoder_fc
+                fc_model.mask = mask
 
                 fc_model.init_sets(
                     X_scaled_NN.shape[1],
@@ -2341,13 +2448,22 @@ def fc_start_fit():
                 fc_model.fit(X_scaled_NN, y_NN, X_scaled_NN, y_NN)
 
                 rules = fc_model.thefittest["net"].show_rules(
-                    var_names=columns_NN, class_names=label_encoder.classes_
+                    var_names=columns_NN, class_names=label_encoder_fc.classes_
                 )[0]
 
                 nn_fit_start_button.config(state=tk.NORMAL)
                 fc_fit_start_button.config(state=tk.NORMAL)
                 fc_save_button.config(state=tk.NORMAL)
                 trained_on_nn_data = True
+
+                y_pred = fc_model.predict(X_scaled_NN)
+                f_1 = f1_score(y_NN, y_pred, average="macro")
+
+                fc_info_widget.config(state=tk.NORMAL)
+                fc_info_widget.insert(
+                    tk.END, "f1-score (обучение (NN)):" + str(f_1) + "\n"
+                )
+                fc_info_widget.config(state=tk.DISABLED)
             else:
                 nn_fit_start_button.config(state=tk.DISABLED)
                 fc_fit_start_button.config(state=tk.DISABLED)
@@ -2355,8 +2471,12 @@ def fc_start_fit():
                 X_ = data.loc[:, data.columns != "class"].values
                 labels = data["class"].values
 
-                label_encoder = LabelEncoder()
-                y = label_encoder.fit_transform(labels)
+                label_encoder_fc = LabelEncoder()
+                y = label_encoder_fc.fit_transform(labels)
+
+                fc_model.label_encoder = label_encoder_fc
+                mask = list(range(X_.shape[1]))
+                fc_model.mask = mask
 
                 X_scaled = scale(X_)
                 columns = list(data.columns)
@@ -2367,13 +2487,20 @@ def fc_start_fit():
                 fc_model.fit(X_scaled, y, X_scaled, y)
 
                 rules = fc_model.thefittest["net"].show_rules(
-                    var_names=columns, class_names=label_encoder.classes_
+                    var_names=columns, class_names=label_encoder_fc.classes_
                 )[0]
 
                 nn_fit_start_button.config(state=tk.NORMAL)
                 fc_fit_start_button.config(state=tk.NORMAL)
                 fc_save_button.config(state=tk.NORMAL)
                 trained_on_nn_data = False
+
+                y_pred = fc_model.predict(X_scaled)
+                f_1 = f1_score(y, y_pred, average="macro")
+
+                fc_info_widget.config(state=tk.NORMAL)
+                fc_info_widget.insert(tk.END, "f1-score (обучение):" + str(f_1) + "\n")
+                fc_info_widget.config(state=tk.DISABLED)
 
             stats = fc_model.stats
             fc_all_stats = pd.concat(
@@ -2397,9 +2524,143 @@ def fc_start_fit():
         algorithm_thread.start()
 
 
+def load_model(file_path):
+    with open(file_path, "rb") as file:
+        model = pickle.load(file)
+    return model
+
+
+def load_nn_model():
+    file_path = filedialog.askopenfilename(
+        title="Выбрать файл модели",
+        filetypes=[("Pickle files", "*.pkl")],
+    )
+    if file_path:
+        global nn_model_for_predict
+        # Здесь вы можете добавить код для загрузки модели
+        nn_model_for_predict = load_model(file_path)
+        print(f"Модель загружена из файла: {file_path}")
+
+        nn_info_widget_predict.config(state=tk.NORMAL)
+        nn_info_widget_predict.insert(
+            tk.END, "Модель загружена из файла:" + os.path.basename(file_path) + "\n"
+        )
+        nn_info_widget_predict.config(state=tk.DISABLED)
+        nn_button_predict.config(state=tk.NORMAL)
+
+
+def nn_predict():
+    global labels_predict
+    global data_predict
+
+    X_test = data_predict.loc[:, data_predict.columns != "class"].values
+
+
+    X_scaled_test = scale(X_test)
+    labels = data_predict["class"].values
+
+    y_test = nn_model_for_predict.label_encoder.transform(labels)
+
+    net = nn_model_for_predict.thefittest["net"]
+
+    y_pred = net.predict(X_scaled_test)
+
+    labels_predict = nn_model_for_predict.label_encoder.inverse_transform(y_pred)
+
+    f_1 = f1_score(y_test, y_pred, average="macro")
+
+    nn_info_widget_predict.config(state=tk.NORMAL)
+    nn_info_widget_predict.insert(tk.END, "f1-score (тест):" + str(f_1) + "\n")
+    nn_info_widget_predict.config(state=tk.DISABLED)
+
+    nn_button_predict_save.config(state=tk.NORMAL)
+
+
+def nn_save_predict():
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".csv",
+        filetypes=[("CSV files", "*.csv")],
+        initialfile="predict.csv",
+    )
+    if file_path:
+        # Сохраняем DataFrame в выбранный файл
+        pds = pd.DataFrame({"class": labels_predict})
+        pds.index = data_predict.index
+        pds.to_csv(file_path)
+
+        nn_info_widget_predict.config(state=tk.NORMAL)
+        nn_info_widget_predict.insert(
+            tk.END, "Прогноз сохранен в:" + os.path.basename(file_path) + "\n"
+        )
+        nn_info_widget_predict.config(state=tk.DISABLED)
+
+
+def load_fc_model():
+    file_path = filedialog.askopenfilename(
+        title="Выбрать файл модели",
+        filetypes=[("Pickle files", "*.pkl")],
+    )
+    if file_path:
+        global fc_model_for_predict
+        # Здесь вы можете добавить код для загрузки модели
+        fc_model_for_predict = load_model(file_path)
+
+        fc_info_widget_predict.config(state=tk.NORMAL)
+        fc_info_widget_predict.insert(
+            tk.END, "Модель загружена из файла:" + os.path.basename(file_path) + "\n"
+        )
+        fc_info_widget_predict.config(state=tk.DISABLED)
+        fc_button_predict.config(state=tk.NORMAL)
+
+
+def fc_predict():
+    global fc_labels_predict
+    global data_predict
+
+    X_test = data_predict.loc[:, data_predict.columns != "class"].values
+    X_test = X_test[:, fc_model_for_predict.mask[:-1]]
+    X_scaled_test = scale(X_test)
+    labels = data_predict["class"].values
+
+    y_test = fc_model_for_predict.label_encoder.transform(labels)
+
+    y_pred = fc_model_for_predict.predict(X_scaled_test)
+
+    fc_labels_predict = fc_model_for_predict.label_encoder.inverse_transform(y_pred)
+
+    f_1 = f1_score(y_test, y_pred, average="macro")
+
+    fc_info_widget_predict.config(state=tk.NORMAL)
+    fc_info_widget_predict.insert(tk.END, "f1-score (тест):" + str(f_1) + "\n")
+    fc_info_widget_predict.config(state=tk.DISABLED)
+
+    fc_button_predict_save.config(state=tk.NORMAL)
+
+
+def fc_save_predict():
+    file_path = filedialog.asksaveasfilename(
+        defaultextension=".csv",
+        filetypes=[("CSV files", "*.csv")],
+        initialfile="predict.csv",
+    )
+    if file_path:
+        # Сохраняем DataFrame в выбранный файл
+        pds = pd.DataFrame({"class": fc_labels_predict})
+        pds.index = data_predict.index
+        pds.to_csv(file_path)
+
+        fc_info_widget_predict.config(state=tk.NORMAL)
+        fc_info_widget_predict.insert(
+            tk.END, "Прогноз сохранен в:" + os.path.basename(file_path) + "\n"
+        )
+        fc_info_widget_predict.config(state=tk.DISABLED)
+
+
 # Создание основного окна
 root = tk.Tk()
-root.title("Программа для отображения данных")
+root.title(
+    "Программная система проектирования интерпретируемых технологий искусственного интеллекта на основе нейронных сетей и нечеткой логики гибридными самоконфигурируемыми генетическими алгоритмами"
+)
 
 # Создание вкладок
 notebook = ttk.Notebook(root)
@@ -2410,7 +2671,10 @@ notebook.add(train_main_tab, text="Обучение")
 
 # Кнопка выбора файла
 data_button = tk.Button(
-    train_main_tab, text="Выбрать файл", command=data_open_file, anchor=tk.W
+    train_main_tab,
+    text="Выбрать файл с данными для обучения",
+    command=data_open_file,
+    anchor=tk.W,
 )
 data_button.pack(pady=10, anchor=tk.W)
 
@@ -2500,55 +2764,61 @@ nn_save_stat_button = ttk.Button(
 )
 nn_save_stat_button.pack(pady=10, anchor=tk.W)
 
+# Кнопка для сохранения отображения сети
+nn_save_png_button = ttk.Button(
+    controls_frame,
+    text="Сохранить изображение сети",
+    command=nn_save_print_net,
+    state=tk.DISABLED,
+)
+nn_save_png_button.pack(pady=10, anchor=tk.W)
 
-fig, ax = Figure(), plt.axes()
-canvas = FigureCanvasTkAgg(fig, master=frame)
-canvas_widget = canvas.get_tk_widget()
-canvas_widget.pack(fill="both", expand=True, side=tk.RIGHT)
-
+# Добавление окна с текстом для информации
+nn_info_widget = tk.Text(frame, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED)
+nn_info_widget.pack(side="top")
 
 ############################################ Вкладка "Нечеткая система" внутри "Обучение"
 fc_tab = ttk.Frame(nested_notebook_train)
 nested_notebook_train.add(fc_tab, text="Нечеткая система")
 
+# Создаем фрейм для управления
+fc_frame = ttk.Frame(fc_tab)
+fc_frame.pack(pady=10, anchor=tk.W)
+
+# Создаем фрейм для кнопок и окошек
+fc_controls_frame = ttk.Frame(fc_frame)
+fc_controls_frame.pack(side="left")
+
+
 # Окна ввода параметров
-fc_iters_label = tk.Label(fc_tab, text="Количество итераций:", anchor=tk.W)
-fc_iters_entry = tk.Entry(fc_tab)
+fc_iters_label = tk.Label(fc_controls_frame, text="Количество итераций:", anchor=tk.W)
+fc_iters_entry = tk.Entry(fc_controls_frame)
 fc_iters_entry.insert(0, "10")  # Значение по умолчанию
 fc_iters_label.pack(anchor=tk.W)
 fc_iters_entry.pack(anchor=tk.W)
 
-fc_pop_size_label = tk.Label(fc_tab, text="Размер популяции:", anchor=tk.W)
-fc_pop_size_entry = tk.Entry(fc_tab)
+fc_pop_size_label = tk.Label(fc_controls_frame, text="Размер популяции:", anchor=tk.W)
+fc_pop_size_entry = tk.Entry(fc_controls_frame)
 fc_pop_size_entry.insert(0, "10")  # Значение по умолчанию
 fc_pop_size_label.pack(anchor=tk.W)
 fc_pop_size_entry.pack(anchor=tk.W)
 
-fc_tour_size_label = tk.Label(fc_tab, text="Размер турнира:", anchor=tk.W)
-fc_tour_size_entry = tk.Entry(fc_tab)
+fc_tour_size_label = tk.Label(fc_controls_frame, text="Размер турнира:", anchor=tk.W)
+fc_tour_size_entry = tk.Entry(fc_controls_frame)
 fc_tour_size_entry.insert(0, "3")  # Значение по умолчанию
 fc_tour_size_label.pack(anchor=tk.W)
 fc_tour_size_entry.pack(anchor=tk.W)
 
 fc_num_fuzzy_vars_label = tk.Label(
-    fc_tab, text="Количество нечетких переменных:", anchor=tk.W
+    fc_controls_frame, text="Количество нечетких переменных:", anchor=tk.W
 )
-fc_num_fuzzy_vars_entry = tk.Entry(fc_tab)
+fc_num_fuzzy_vars_entry = tk.Entry(fc_controls_frame)
 fc_num_fuzzy_vars_entry.insert(0, "3")  # Значение по умолчанию
 fc_num_fuzzy_vars_label.pack(anchor=tk.W)
 fc_num_fuzzy_vars_entry.pack(anchor=tk.W)
 
-fc_resources_label = tk.Label(
-    fc_tab,
-    text="Ресурсы для обучения линг. переменных (iters*pop_size):",
-)
-fc_resources_entry = tk.Entry(fc_tab)
-fc_resources_entry.insert(0, "2500")  # Значение по умолчанию
-fc_resources_label.pack(anchor=tk.W)
-fc_resources_entry.pack(anchor=tk.W)
-
 # Фрейм для прогресс-бара и кнопок
-fc_progress_and_safe_frame = tk.Frame(fc_tab)
+fc_progress_and_safe_frame = tk.Frame(fc_controls_frame)
 fc_progress_and_safe_frame.pack(pady=10, anchor=tk.W)
 
 # Чекбокс для выбора использования входов и выходов нейронной сети
@@ -2575,7 +2845,7 @@ fc_fit_start_button = tk.Button(
 fc_fit_start_button.pack(side=tk.LEFT, anchor=tk.W)
 
 # Фрейм для прогресс-бара и кнопок
-fc_progress_and_safe_frame = tk.Frame(fc_tab)
+fc_progress_and_safe_frame = tk.Frame(fc_controls_frame)
 fc_progress_and_safe_frame.pack(pady=10, anchor=tk.W)
 
 # Подпись "Построение нечеткой системы"
@@ -2605,49 +2875,143 @@ fc_save_button.pack(side=tk.RIGHT, anchor=tk.W)
 
 # Добавление окна с текстом
 fc_result_rulebase_widget = tk.Text(
-    fc_tab, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED
+    fc_controls_frame, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED
 )
 fc_result_rulebase_widget.pack(pady=10, fill=tk.BOTH, expand=True)
 
 # Кнопка для сохранения статистики
 fc_save_stat_button = ttk.Button(
-    fc_tab,
+    fc_controls_frame,
     text="Сохранить статистику обучения",
     command=fc_save_all_stats,
     state=tk.DISABLED,
 )
 fc_save_stat_button.pack(pady=10, anchor=tk.W)
 
+# Добавление окна с текстом для информации
+fc_info_widget = tk.Text(fc_frame, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED)
+fc_info_widget.pack(side="top", anchor="w")
+
 # Пакет вложенных вкладок
 nested_notebook_train.pack(expand=1, fill="both")
 
-
-# Вкладка "Предсказание"
+# Вкладка "Тест"
 predict_main_tab = ttk.Frame(notebook)
-notebook.add(predict_main_tab, text="Предсказание")
+notebook.add(predict_main_tab, text="Тест")
+
+# Кнопка выбора файла
+data_button_predict = tk.Button(
+    predict_main_tab,
+    text="Выбрать файл с данными для теста",
+    command=data_open_file_predict,
+    anchor=tk.W,
+)
+data_button_predict.pack(pady=10, anchor=tk.W)
+
+# Вложенные вкладки внутри "Тест"
+nested_notebook_predict = ttk.Notebook(predict_main_tab)
+
+############################################ Вкладка "Нейронная сеть" внутри "Тест"
+nn_tab_predict = ttk.Frame(nested_notebook_predict)
+nested_notebook_predict.add(nn_tab_predict, text="Нейронная сеть")
+
+# Создаем фрейм для управления
+nn_frame_predict = ttk.Frame(nn_tab_predict)
+nn_frame_predict.pack(pady=10, anchor=tk.W)
+
+# Создаем фрейм для кнопок и окошек
+nn_controls_frame_predict = ttk.Frame(nn_frame_predict)
+nn_controls_frame_predict.pack(side="left")
+
+# Кнопка загрузки модели
+load_nn_model_button = tk.Button(
+    nn_controls_frame_predict,
+    text="Загрузить модель",
+    command=load_nn_model,
+    anchor=tk.W,
+)
+load_nn_model_button.pack(pady=10, anchor=tk.W)
+
+# Кнопка старта теста
+nn_button_predict = tk.Button(
+    nn_controls_frame_predict,
+    text="Запустить тест",
+    command=nn_predict,
+    anchor=tk.W,
+    state=tk.DISABLED,
+)
+nn_button_predict.pack(pady=10, anchor=tk.W)
+
+# Кнопка сохранить прогноз
+nn_button_predict_save = tk.Button(
+    nn_controls_frame_predict,
+    text="Сохранить прогноз",
+    command=nn_save_predict,
+    anchor=tk.W,
+    state=tk.DISABLED,
+)
+nn_button_predict_save.pack(pady=10, anchor=tk.W)
+
+# Добавление окна с текстом для информации
+nn_info_widget_predict = tk.Text(
+    nn_frame_predict, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED
+)
+nn_info_widget_predict.pack(side="top", anchor="w")
 
 
-# # Вложенные вкладки внутри "Предсказание"
-# nested_notebook_predict = ttk.Notebook(predict_main_tab)
+############################################ Вкладка "Нечеткая система" внутри "Тест"
+fc_tab_predict = ttk.Frame(nested_notebook_predict)
+nested_notebook_predict.add(fc_tab_predict, text="Нечеткая система")
 
-# # Вкладка "Нейронная сеть"
-# nn_tab_predict = ttk.Frame(nested_notebook_predict)
-# nested_notebook_predict.add(nn_tab_predict, text="Нейронная сеть")
+# Создаем фрейм для управления
+fc_frame_predict = ttk.Frame(fc_tab_predict)
+fc_frame_predict.pack(pady=10, anchor=tk.W)
 
-# # Вкладка "Нечеткая система"
-# fuzzy_ta_predict = ttk.Frame(nested_notebook_predict)
-# nested_notebook_train.add(fuzzy_ta_predict, text="Нечеткая система")
+# Создаем фрейм для кнопок и окошек
+fc_controls_frame_predict = ttk.Frame(fc_frame_predict)
+fc_controls_frame_predict.pack(side="left")
 
-# # Пакет вложенных вкладок
-# nested_notebook_predict.pack(expand=1, fill="both")
+# Кнопка загрузки модели
+load_fc_model_button = tk.Button(
+    fc_controls_frame_predict,
+    text="Загрузить модель",
+    command=load_fc_model,
+    anchor=tk.W,
+)
+load_fc_model_button.pack(pady=10, anchor=tk.W)
 
-# # Вложенные вкладки внутри "Обучение"
-# nested_notebook_train = ttk.Notebook(train_main_tab)
+# Кнопка старта теста
+fc_button_predict = tk.Button(
+    fc_controls_frame_predict,
+    text="Запустить тест",
+    command=fc_predict,
+    anchor=tk.W,
+    state=tk.DISABLED,
+)
+fc_button_predict.pack(pady=10, anchor=tk.W)
 
+# Кнопка сохранить прогноз
+fc_button_predict_save = tk.Button(
+    fc_controls_frame_predict,
+    text="Сохранить прогноз",
+    command=fc_save_predict,
+    anchor=tk.W,
+    state=tk.DISABLED,
+)
+fc_button_predict_save.pack(pady=10, anchor=tk.W)
+
+# Добавление окна с текстом для информации
+fc_info_widget_predict = tk.Text(
+    fc_frame_predict, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED
+)
+fc_info_widget_predict.pack(side="top", anchor="w")
+
+
+# Пакет вложенных вкладок внутри "Тест"
+nested_notebook_predict.pack(expand=1, fill="both")
 
 # Пакет всех вкладок
 notebook.pack(expand=1, fill="both")
-
 
 # Запуск основного цикла
 root.mainloop()
