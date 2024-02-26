@@ -1087,7 +1087,7 @@ class selfCGPNN(GPNN):
             self._iteration = self._iteration + 1
 
             nn_fit_progress_var.set(progress_value)
-            root.update_idletasks()  # Обновление интерфейса
+            root.update_idletasks()
 
         self.thefittest["individ"] = copy.deepcopy(population[np.argmax(fitness)])
         self.thefittest["fitness"] = fitness[np.argmax(fitness)].copy()
@@ -1150,7 +1150,7 @@ class selfCGPNN(GPNN):
                 self._iteration = self._iteration + 1
 
                 nn_fit_progress_var.set(progress_value)
-                root.update_idletasks()  # Обновление интерфейса
+                root.update_idletasks()
 
             fitness[-1] = self.thefittest["fitness"].copy()
             population_nets[-1] = copy.deepcopy(self.thefittest["net"])
@@ -1167,14 +1167,6 @@ class selfCGPNN(GPNN):
             self.__update_statistic(fitness, m_proba, c_proba, s_proba, r_proba)
 
         return self
-
-    def plot_graph(self, x, y):
-        self.ax.clear()
-        self.ax.plot(x, y)
-        self.ax.set_title("График")
-
-        # Обновление холста
-        self.canvas.draw()
 
 
 class SplitFunction:
@@ -1368,11 +1360,10 @@ class Rulebase:
                 ]
             )
 
-            # вычисления повторяются norm_scaled*l_points
             left = hights[:, :-1] + norm_scaled * l_points
 
-            right_raw_1 = hights[:, :-1] + norm_scaled * l_points  # это тот же left
-            # тот же left
+            right_raw_1 = hights[:, :-1] + norm_scaled * l_points
+
             right_raw_2 = hights[:, 1:] - (hights[:, :-1] + norm_scaled * l_points)
             right = right_raw_1 + right_raw_2 * r_points
 
@@ -1497,7 +1488,7 @@ class Rulebase:
                 text_rule += or_chain_text
             text_rule = text_rule[:-4] + "then " + str(concl)
 
-            text_rulebase += text_rule + "\n"
+            text_rulebase += text_rule + "\\n"
 
         return text_rulebase, len_rule, vars_used
 
@@ -1936,7 +1927,7 @@ class SelfGPFLClassifier:
             self._iteration = self._iteration + 1
 
             fc_fit_progress_var.set(progress_value)
-            root.update_idletasks()  # Обновление интерфейса
+            root.update_idletasks()
 
         self.thefittest["individ"] = copy.deepcopy(population[np.argmax(fitness)])
         self.thefittest["fitness"] = fitness[np.argmax(fitness)].copy()
@@ -1983,7 +1974,7 @@ class SelfGPFLClassifier:
                 population_temp[j] = copy.deepcopy(offspring)
 
             resource = resource + resource_h
-            # print(resource.mean(), "resource.mean()")
+
             population_temp[-1] = copy.deepcopy(self.thefittest["individ"])
 
             population = copy.deepcopy(population_temp)
@@ -2005,7 +1996,7 @@ class SelfGPFLClassifier:
                 self._iteration = self._iteration + 1
 
                 fc_fit_progress_var.set(progress_value)
-                root.update_idletasks()  # Обновление интерфейса
+                root.update_idletasks()
 
             proba_history["fitness"] = fitness
 
@@ -2031,18 +2022,12 @@ def print_net(net, show_edge=False, ax=None, in_dict=None):
     net = copy.deepcopy(net)
 
     if type(in_dict) != type(None):
-        print("работает")
         bias = list(net.inputs)[-1]
         for i, value in enumerate(in_dict.values()):
 
             cond = net.connects[:, 0] == np.array(list(value))[:, np.newaxis]
             cond = np.any(cond, axis=0)
             net.connects[:, 0][cond] = i
-            # print(i, value, len(cond), np.arange(len(cond)))
-
-            # cond[np.min(np.arange(len(cond))[cond])] = False
-            # ind = np.arange(len(cond))[cond]
-            # net.weights = np.delete(net.weights, ind)
 
         dup = pd.DataFrame(net.connects).duplicated().values
         dup_all = pd.DataFrame(net.connects).duplicated(keep=False).values
@@ -2051,7 +2036,7 @@ def print_net(net, show_edge=False, ax=None, in_dict=None):
         net.connects = np.delete(net.connects, dup, axis=0)
         net.inputs = set(range(len(in_dict)))
         net.inputs.add(bias)
-    # return net
+
     G = nx.DiGraph()
 
     weights = net.weights.copy()
@@ -2067,14 +2052,14 @@ def print_net(net, show_edge=False, ax=None, in_dict=None):
     colors = np.zeros((sum_, 4))
     w_colors = np.zeros((len(weights), 4))
 
-    G.add_nodes_from(net.inputs)  # входы
+    G.add_nodes_from(net.inputs)
     positions[: len_i - 1][:, 1] = np.arange(len_i - 1) - (len_i - 1) / 2
     colors[:len_i] = np.array([0.11, 0.67, 0.47, 1])
     colors[len_i - 1] = np.array([0.11, 0.67, 0.47, 0.1])
     positions[len_i - 1][1] = np.max(positions[: len_i - 1][:, 1]) + 1
 
     n = len_i
-    for i, layer in enumerate(net.hiddens):  # скрытые
+    for i, layer in enumerate(net.hiddens):
 
         G.add_nodes_from(np.sort(list(layer)))
 
@@ -2083,12 +2068,12 @@ def print_net(net, show_edge=False, ax=None, in_dict=None):
         colors[n : n + len(layer)] = np.array([0.0, 0.74, 0.99, 1])
         n += len(layer)
 
-    G.add_nodes_from(net.outputs)  # выходы
+    G.add_nodes_from(net.outputs)
     positions[n : n + len_o][:, 0] = len(net.hiddens) + 1
     positions[n : n + len_o][:, 1] = np.arange(len_o) - len_o / 2
     colors[n : n + len_o] = np.array([0.94, 0.50, 0.50, 1])
 
-    G.add_edges_from(net.connects)  # связи
+    G.add_edges_from(net.connects)
     w_colors[:, 0] = 1 - weights
     w_colors[:, 2] = weights
     w_colors[:, 3] = 0.8
@@ -2147,7 +2132,7 @@ def cat_crossentropy2(target, output):
 
 def show_table(data_frame):
     top = tk.Toplevel(root)
-    top.title("Таблица данных")
+    top.title("Data Table")
 
     table = Table(top, dataframe=data_frame, showtoolbar=True, showstatusbar=True)
     table.show()
@@ -2159,12 +2144,12 @@ def data_open_file():
 
     nn_info_widget.config(state=tk.NORMAL)
     nn_info_widget.insert(
-        tk.END, "Файл с данными для обучения:" + os.path.basename(file_path) + "\n"
+        tk.END, "Training data file:" + os.path.basename(file_path) + "\\n"
     )
     nn_info_widget.config(state=tk.DISABLED)
     fc_info_widget.config(state=tk.NORMAL)
     fc_info_widget.insert(
-        tk.END, "Файл с данными для обучения:" + os.path.basename(file_path) + "\n"
+        tk.END, "Training data file:" + os.path.basename(file_path) + "\\n"
     )
     fc_info_widget.config(state=tk.DISABLED)
 
@@ -2182,12 +2167,9 @@ def data_open_file_predict():
 
     nn_info_widget_predict.config(state=tk.NORMAL)
     nn_info_widget_predict.insert(
-        tk.END, "Файл с данными для тестирования:" + os.path.basename(file_path) + "\n"
+        tk.END, "Testing data file:" + os.path.basename(file_path) + "\\n"
     )
     nn_info_widget_predict.config(state=tk.DISABLED)
-    # fc_info_widget.config(state=tk.NORMAL)
-    # fc_info_widget.insert(tk.END, "Файл с данными для обучения:" + filename_data + "\n")
-    # fc_info_widget.config(state=tk.DISABLED)
 
     if file_path:
         data_predict = pd.read_csv(file_path)
@@ -2207,7 +2189,7 @@ def nn_save_model():
 
             nn_info_widget.config(state=tk.NORMAL)
             nn_info_widget.insert(
-                tk.END, "Сеть сохранена в:" + os.path.basename(file_path) + "\n"
+                tk.END, "Network saved to:" + os.path.basename(file_path) + "\\n"
             )
             nn_info_widget.config(state=tk.DISABLED)
 
@@ -2234,7 +2216,7 @@ def fc_save_model():
 
         nn_info_widget.config(state=tk.NORMAL)
         nn_info_widget.insert(
-            tk.END, "Нечеткая система сохранена в:" + os.path.basename(file_path) + "\n"
+            tk.END, "Fuzzy system saved to:" + os.path.basename(file_path) + "\\n"
         )
         nn_info_widget.config(state=tk.DISABLED)
 
@@ -2247,12 +2229,12 @@ def nn_save_all_stats():
     )
 
     if file_path:
-        # Сохраняем DataFrame в выбранный файл
+        # Save DataFrame to the selected file
         nn_all_stats.to_csv(file_path, index=False)
 
         nn_info_widget.config(state=tk.NORMAL)
         nn_info_widget.insert(
-            tk.END, "Статистика сохранена в:" + os.path.basename(file_path) + "\n"
+            tk.END, "Statistics saved to:" + os.path.basename(file_path) + "\\n"
         )
         nn_info_widget.config(state=tk.DISABLED)
 
@@ -2285,20 +2267,20 @@ def fc_save_all_stats():
         )
 
     if file_path:
-        # Сохраняем DataFrame в выбранный файл
+        # Save DataFrame to the selected file
         fc_all_stats.to_csv(file_path, index=False)
         print(f"DataFrame saved to {file_path}")
 
         fc_info_widget.config(state=tk.NORMAL)
         fc_info_widget.insert(
-            tk.END, "Статистика сохранена в:" + os.path.basename(file_path) + "\n"
+            tk.END, "Statistics saved to:" + os.path.basename(file_path) + "\\n"
         )
         fc_info_widget.config(state=tk.DISABLED)
 
 
 def nn_start_fit():
     if "data" in globals():
-        # Получение значений из окон ввода
+        # Get values from input windows
         iters = int(nn_iters_entry.get())
         pop_size = int(nn_pop_size_entry.get())
         ngram = 1
@@ -2317,9 +2299,6 @@ def nn_start_fit():
         )
 
         def run_algorithm():
-            # global X_scaled_NN
-            # global columns_NN
-            # global y_NN
             global nn_all_stats
 
             nn_fit_start_button.config(state=tk.DISABLED)
@@ -2351,7 +2330,6 @@ def nn_start_fit():
             nn_fit_start_button.config(state=tk.NORMAL)
             fc_fit_start_button.config(state=tk.NORMAL)
             nn_save_button.config(state=tk.NORMAL)
-            # Ваш код для дополнительных действий после выполнения кода
 
             stats = nn_model.stats
             nn_all_stats = pd.concat(
@@ -2369,17 +2347,17 @@ def nn_start_fit():
             f_1 = f1_score(y, y_NN, average="macro")
 
             nn_info_widget.config(state=tk.NORMAL)
-            nn_info_widget.insert(tk.END, "f1-score (обучения):" + str(f_1) + "\n")
+            nn_info_widget.insert(tk.END, "f1-score (training):" + str(f_1) + "\\n")
             nn_info_widget.config(state=tk.DISABLED)
 
-        # Запуск алгоритма в отдельном потоке
+        # Run the algorithm in a separate thread
         algorithm_thread = Thread(target=run_algorithm)
         algorithm_thread.start()
 
 
 def fc_start_fit():
     if "data" in globals():
-        # Получение значений из окон ввода
+        # Get values from input windows
         iters = int(fc_iters_entry.get())
         pop_size = int(fc_pop_size_entry.get())
         tour_size = int(fc_tour_size_entry.get())
@@ -2388,7 +2366,7 @@ def fc_start_fit():
         max_res = 0
         global fc_model
 
-        # Обновление значения атрибута iters в объекте SelfGPFLClassifier
+        # Update the 'iters' attribute in the SelfGPFLClassifier object
         fc_model = SelfGPFLClassifier(
             iters,
             pop_size,
@@ -2403,16 +2381,18 @@ def fc_start_fit():
             global trained_on_nn_data
             global label_encoder_fc
 
-            if fc_use_nn_inputs_var.get() == 1:  # 1 - чекбокс включен, 0 - выключен
+            if (
+                fc_use_nn_inputs_var.get() == 1
+            ):  # 1 - checkbox is checked, 0 - unchecked
                 file_path = filedialog.askopenfilename(
-                    title="Выбрать файл модели",
+                    title="Choose model file",
                     filetypes=[("Pickle files", "*.pkl")],
                 )
                 if file_path:
                     global nn_model_
-                    # Здесь вы можете добавить код для загрузки модели
+                    # Here you can add code to load the model
                     nn_model_ = load_model(file_path)
-                    print(f"Модель загружена из файла: {file_path}")
+                    print(f"Model loaded from file: {file_path}")
 
                 X_ = data.loc[:, data.columns != "class"].values
                 labels = data["class"].values
@@ -2425,8 +2405,10 @@ def fc_start_fit():
                 net = nn_model_.thefittest["net"]
                 mask = list(net.inputs)
                 mask.sort()
-                X_scaled_NN = X_scaled[:, mask[:-1]]
-                columns_NN = np.array(columns, dtype=object)[mask[:-1]]
+                mask = mask[:-1]
+
+                X_scaled_NN = X_scaled[:, mask]
+                columns_NN = np.array(columns, dtype=object)[mask]
                 y_NN = net.predict(X_scaled)
 
                 nn_fit_start_button.config(state=tk.DISABLED)
@@ -2461,7 +2443,7 @@ def fc_start_fit():
 
                 fc_info_widget.config(state=tk.NORMAL)
                 fc_info_widget.insert(
-                    tk.END, "f1-score (обучение (NN)):" + str(f_1) + "\n"
+                    tk.END, "f1-score (training (NN)):" + str(f_1) + "\\n"
                 )
                 fc_info_widget.config(state=tk.DISABLED)
             else:
@@ -2499,7 +2481,7 @@ def fc_start_fit():
                 f_1 = f1_score(y, y_pred, average="macro")
 
                 fc_info_widget.config(state=tk.NORMAL)
-                fc_info_widget.insert(tk.END, "f1-score (обучение):" + str(f_1) + "\n")
+                fc_info_widget.insert(tk.END, "f1-score (training):" + str(f_1) + "\\n")
                 fc_info_widget.config(state=tk.DISABLED)
 
             stats = fc_model.stats
@@ -2519,7 +2501,7 @@ def fc_start_fit():
             fc_result_rulebase_widget.insert(tk.END, rules)
             fc_result_rulebase_widget.config(state=tk.DISABLED)
 
-        # Запуск алгоритма в отдельном потоке
+        # Run the algorithm in a separate thread
         algorithm_thread = Thread(target=run_algorithm_fuzzy)
         algorithm_thread.start()
 
@@ -2532,18 +2514,18 @@ def load_model(file_path):
 
 def load_nn_model():
     file_path = filedialog.askopenfilename(
-        title="Выбрать файл модели",
+        title="Choose model file",
         filetypes=[("Pickle files", "*.pkl")],
     )
     if file_path:
         global nn_model_for_predict
-        # Здесь вы можете добавить код для загрузки модели
+        # Here you can add code to load the model
         nn_model_for_predict = load_model(file_path)
-        print(f"Модель загружена из файла: {file_path}")
+        print(f"Model loaded from file: {file_path}")
 
         nn_info_widget_predict.config(state=tk.NORMAL)
         nn_info_widget_predict.insert(
-            tk.END, "Модель загружена из файла:" + os.path.basename(file_path) + "\n"
+            tk.END, "Model loaded from file:" + os.path.basename(file_path) + "\\n"
         )
         nn_info_widget_predict.config(state=tk.DISABLED)
         nn_button_predict.config(state=tk.NORMAL)
@@ -2554,7 +2536,6 @@ def nn_predict():
     global data_predict
 
     X_test = data_predict.loc[:, data_predict.columns != "class"].values
-
 
     X_scaled_test = scale(X_test)
     labels = data_predict["class"].values
@@ -2570,7 +2551,7 @@ def nn_predict():
     f_1 = f1_score(y_test, y_pred, average="macro")
 
     nn_info_widget_predict.config(state=tk.NORMAL)
-    nn_info_widget_predict.insert(tk.END, "f1-score (тест):" + str(f_1) + "\n")
+    nn_info_widget_predict.insert(tk.END, "f1-score (test):" + str(f_1) + "\\n")
     nn_info_widget_predict.config(state=tk.DISABLED)
 
     nn_button_predict_save.config(state=tk.NORMAL)
@@ -2583,31 +2564,31 @@ def nn_save_predict():
         initialfile="predict.csv",
     )
     if file_path:
-        # Сохраняем DataFrame в выбранный файл
+        # Save DataFrame to the selected file
         pds = pd.DataFrame({"class": labels_predict})
         pds.index = data_predict.index
         pds.to_csv(file_path)
 
         nn_info_widget_predict.config(state=tk.NORMAL)
         nn_info_widget_predict.insert(
-            tk.END, "Прогноз сохранен в:" + os.path.basename(file_path) + "\n"
+            tk.END, "Prediction saved to:" + os.path.basename(file_path) + "\\n"
         )
         nn_info_widget_predict.config(state=tk.DISABLED)
 
 
 def load_fc_model():
     file_path = filedialog.askopenfilename(
-        title="Выбрать файл модели",
+        title="Choose model file",
         filetypes=[("Pickle files", "*.pkl")],
     )
     if file_path:
         global fc_model_for_predict
-        # Здесь вы можете добавить код для загрузки модели
+        # Here you can add code to load the model
         fc_model_for_predict = load_model(file_path)
 
         fc_info_widget_predict.config(state=tk.NORMAL)
         fc_info_widget_predict.insert(
-            tk.END, "Модель загружена из файла:" + os.path.basename(file_path) + "\n"
+            tk.END, "Model loaded from file:" + os.path.basename(file_path) + "\\n"
         )
         fc_info_widget_predict.config(state=tk.DISABLED)
         fc_button_predict.config(state=tk.NORMAL)
@@ -2618,7 +2599,7 @@ def fc_predict():
     global data_predict
 
     X_test = data_predict.loc[:, data_predict.columns != "class"].values
-    X_test = X_test[:, fc_model_for_predict.mask[:-1]]
+    X_test = X_test[:, fc_model_for_predict.mask[:]]
     X_scaled_test = scale(X_test)
     labels = data_predict["class"].values
 
@@ -2631,7 +2612,7 @@ def fc_predict():
     f_1 = f1_score(y_test, y_pred, average="macro")
 
     fc_info_widget_predict.config(state=tk.NORMAL)
-    fc_info_widget_predict.insert(tk.END, "f1-score (тест):" + str(f_1) + "\n")
+    fc_info_widget_predict.insert(tk.END, "f1-score (test):" + str(f_1) + "\\n")
     fc_info_widget_predict.config(state=tk.DISABLED)
 
     fc_button_predict_save.config(state=tk.NORMAL)
@@ -2644,99 +2625,101 @@ def fc_save_predict():
         initialfile="predict.csv",
     )
     if file_path:
-        # Сохраняем DataFrame в выбранный файл
+        # Save DataFrame to the selected file
         pds = pd.DataFrame({"class": fc_labels_predict})
         pds.index = data_predict.index
         pds.to_csv(file_path)
 
         fc_info_widget_predict.config(state=tk.NORMAL)
         fc_info_widget_predict.insert(
-            tk.END, "Прогноз сохранен в:" + os.path.basename(file_path) + "\n"
+            tk.END, "Prediction saved to:" + os.path.basename(file_path) + "\\n"
         )
         fc_info_widget_predict.config(state=tk.DISABLED)
 
 
-# Создание основного окна
+# Creating the main window
 root = tk.Tk()
 root.title(
-    "Программная система проектирования интерпретируемых технологий искусственного интеллекта на основе нейронных сетей и нечеткой логики гибридными самоконфигурируемыми генетическими алгоритмами"
+    "Software System for Designing Interpretable Artificial Intelligence Technologies Based on Hybrid Self-Configuring Genetic Algorithms with Neural Networks and Fuzzy Logic"
 )
 
-# Создание вкладок
+# Creating tabs
 notebook = ttk.Notebook(root)
 
-############################################ Вкладка "Обучение"
+############################################ "Training" Tab
 train_main_tab = ttk.Frame(notebook)
-notebook.add(train_main_tab, text="Обучение")
+notebook.add(train_main_tab, text="Training")
 
-# Кнопка выбора файла
+# File selection button
 data_button = tk.Button(
     train_main_tab,
-    text="Выбрать файл с данными для обучения",
+    text="Choose training data file",
     command=data_open_file,
     anchor=tk.W,
 )
 data_button.pack(pady=10, anchor=tk.W)
 
-# Вложенные вкладки
+# Nested tabs
 nested_notebook_train = ttk.Notebook(train_main_tab)
 
-############################################ Вкладка "Нейронная сеть" внутри "Обучение"
+############################################ "Neural Network" Tab inside "Training"
 nn_tab = ttk.Frame(nested_notebook_train)
-nested_notebook_train.add(nn_tab, text="Нейронная сеть")
+nested_notebook_train.add(nn_tab, text="Neural Network")
 
-# Создаем фрейм для управления
+# Create a control frame
 frame = ttk.Frame(nn_tab)
 frame.pack(pady=10, anchor=tk.W)
 
-# Создаем фрейм для кнопок и окошек
+# Create a frame for buttons and widgets
 controls_frame = ttk.Frame(frame)
 controls_frame.pack(side="left")
 
-# Окна ввода с значениями по умолчанию
-nn_iters_label = tk.Label(controls_frame, text="Количество итераций:", anchor=tk.W)
+# Entry windows with default values
+nn_iters_label = tk.Label(controls_frame, text="Number of iterations:", anchor=tk.W)
 nn_iters_entry = tk.Entry(controls_frame)
-nn_iters_entry.insert(0, "10")  # Значение по умолчанию
+nn_iters_entry.insert(0, "15")  # Default value
 nn_iters_label.pack(anchor=tk.W)
 nn_iters_entry.pack(anchor=tk.W)
 
-nn_pop_size_label = tk.Label(controls_frame, text="Размер популяции:", anchor=tk.W)
+nn_pop_size_label = tk.Label(controls_frame, text="Population size:", anchor=tk.W)
 nn_pop_size_entry = tk.Entry(controls_frame)
-nn_pop_size_entry.insert(0, "10")  # Значение по умолчанию
+nn_pop_size_entry.insert(0, "35")  # Default value
 nn_pop_size_label.pack(anchor=tk.W)
 nn_pop_size_entry.pack(anchor=tk.W)
 
-nn_tour_size_label = tk.Label(controls_frame, text="Размер турнира:", anchor=tk.W)
+nn_tour_size_label = tk.Label(controls_frame, text="Tournament size:", anchor=tk.W)
 nn_tour_size_entry = tk.Entry(controls_frame)
-nn_tour_size_entry.insert(0, "3")  # Значение по умолчанию
+nn_tour_size_entry.insert(0, "5")  # Default value
 nn_tour_size_label.pack(anchor=tk.W)
 nn_tour_size_entry.pack(anchor=tk.W)
 
 nn_resources_label = tk.Label(
     controls_frame,
-    text="Ресурсы для обучения весов сетей (iters*pop_size):",
+    text="Resources for training network weights (iters*pop_size):",
     anchor=tk.W,
 )
 nn_resources_entry = tk.Entry(controls_frame)
-nn_resources_entry.insert(0, "2500")  # Значение по умолчанию
+nn_resources_entry.insert(0, "2500")  # Default value
 nn_resources_label.pack(anchor=tk.W)
 nn_resources_entry.pack(anchor=tk.W)
 
-# Кнопка "Старт"
+# Start button
 nn_fit_start_button = tk.Button(
-    controls_frame, text="Старт", command=nn_start_fit, state=tk.DISABLED, anchor=tk.W
+    controls_frame, text="Start", command=nn_start_fit, state=tk.DISABLED, anchor=tk.W
 )
 nn_fit_start_button.pack(pady=10, anchor=tk.W)
 
-# Фрейм для прогресс-бара и кнопок
+# Frame for progress bar and buttons
 nn_progress_and_safe_frame = tk.Frame(controls_frame)
 nn_progress_and_safe_frame.pack(pady=10, anchor=tk.W)
 
-# Подпись "Построение сети"
-nn_fit_progress_label = tk.Label(nn_progress_and_safe_frame, text="Построение сети:")
+# Label "Building the network"
+nn_fit_progress_label = tk.Label(
+    nn_progress_and_safe_frame, text="Building the network:"
+)
 nn_fit_progress_label.pack(side=tk.TOP, anchor=tk.W)
 
-# Прогресс бар
+# Progress bar
 nn_fit_progress_var = tk.DoubleVar()
 nn_fit_progress_bar = ttk.Progressbar(
     nn_progress_and_safe_frame,
@@ -2746,115 +2729,115 @@ nn_fit_progress_bar = ttk.Progressbar(
 )
 nn_fit_progress_bar.pack(side=tk.LEFT, anchor=tk.W)
 
-# Кнопка "Сохранить сеть"
+# Save network button
 nn_save_button = tk.Button(
     nn_progress_and_safe_frame,
-    text="Сохранить сеть",
+    text="Save network",
     command=nn_save_model,
     state=tk.DISABLED,
 )
 nn_save_button.pack(side=tk.RIGHT, anchor=tk.W)
 
-# Кнопка для сохранения статистики
+# Button for saving statistics
 nn_save_stat_button = ttk.Button(
     controls_frame,
-    text="Сохранить статистику обучения",
+    text="Save training statistics",
     command=nn_save_all_stats,
     state=tk.DISABLED,
 )
 nn_save_stat_button.pack(pady=10, anchor=tk.W)
 
-# Кнопка для сохранения отображения сети
+# Button for saving network visualization
 nn_save_png_button = ttk.Button(
     controls_frame,
-    text="Сохранить изображение сети",
+    text="Save network visualization",
     command=nn_save_print_net,
     state=tk.DISABLED,
 )
 nn_save_png_button.pack(pady=10, anchor=tk.W)
 
-# Добавление окна с текстом для информации
+# Text widget for information
 nn_info_widget = tk.Text(frame, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED)
 nn_info_widget.pack(side="top")
 
-############################################ Вкладка "Нечеткая система" внутри "Обучение"
-fc_tab = ttk.Frame(nested_notebook_train)
-nested_notebook_train.add(fc_tab, text="Нечеткая система")
 
-# Создаем фрейм для управления
+############################################ "Fuzzy System" Tab inside "Training"
+fc_tab = ttk.Frame(nested_notebook_train)
+nested_notebook_train.add(fc_tab, text="Fuzzy System")
+
+# Create a control frame
 fc_frame = ttk.Frame(fc_tab)
 fc_frame.pack(pady=10, anchor=tk.W)
 
-# Создаем фрейм для кнопок и окошек
+# Create a frame for buttons and widgets
 fc_controls_frame = ttk.Frame(fc_frame)
 fc_controls_frame.pack(side="left")
 
-
-# Окна ввода параметров
-fc_iters_label = tk.Label(fc_controls_frame, text="Количество итераций:", anchor=tk.W)
+# Entry windows for parameters
+fc_iters_label = tk.Label(fc_controls_frame, text="Number of iterations:", anchor=tk.W)
 fc_iters_entry = tk.Entry(fc_controls_frame)
-fc_iters_entry.insert(0, "10")  # Значение по умолчанию
+fc_iters_entry.insert(0, "25")  # Default value
 fc_iters_label.pack(anchor=tk.W)
 fc_iters_entry.pack(anchor=tk.W)
 
-fc_pop_size_label = tk.Label(fc_controls_frame, text="Размер популяции:", anchor=tk.W)
+fc_pop_size_label = tk.Label(fc_controls_frame, text="Population size:", anchor=tk.W)
 fc_pop_size_entry = tk.Entry(fc_controls_frame)
-fc_pop_size_entry.insert(0, "10")  # Значение по умолчанию
+fc_pop_size_entry.insert(0, "50")  # Default value
 fc_pop_size_label.pack(anchor=tk.W)
 fc_pop_size_entry.pack(anchor=tk.W)
 
-fc_tour_size_label = tk.Label(fc_controls_frame, text="Размер турнира:", anchor=tk.W)
+fc_tour_size_label = tk.Label(fc_controls_frame, text="Tournament size:", anchor=tk.W)
 fc_tour_size_entry = tk.Entry(fc_controls_frame)
-fc_tour_size_entry.insert(0, "3")  # Значение по умолчанию
+fc_tour_size_entry.insert(0, "5")  # Default value
 fc_tour_size_label.pack(anchor=tk.W)
 fc_tour_size_entry.pack(anchor=tk.W)
 
 fc_num_fuzzy_vars_label = tk.Label(
-    fc_controls_frame, text="Количество нечетких переменных:", anchor=tk.W
+    fc_controls_frame, text="Number of fuzzy variables:", anchor=tk.W
 )
 fc_num_fuzzy_vars_entry = tk.Entry(fc_controls_frame)
-fc_num_fuzzy_vars_entry.insert(0, "3")  # Значение по умолчанию
+fc_num_fuzzy_vars_entry.insert(0, "5")  # Default value
 fc_num_fuzzy_vars_label.pack(anchor=tk.W)
 fc_num_fuzzy_vars_entry.pack(anchor=tk.W)
 
-# Фрейм для прогресс-бара и кнопок
+# Frame for progress bar and buttons
 fc_progress_and_safe_frame = tk.Frame(fc_controls_frame)
 fc_progress_and_safe_frame.pack(pady=10, anchor=tk.W)
 
-# Чекбокс для выбора использования входов и выходов нейронной сети
+# Checkbox for selecting the use of inputs and outputs of the neural network
 fc_use_nn_inputs_var = tk.IntVar()
 use_nn_outputs_var = tk.IntVar()
 
 fc_use_nn_inputs_checkbox = tk.Checkbutton(
     fc_progress_and_safe_frame,
-    text="Использовать входы и выходы нейронной сети",
+    text="Use inputs and outputs of the neural network",
     variable=fc_use_nn_inputs_var,
     anchor=tk.W,
     state=tk.DISABLED,
 )
 fc_use_nn_inputs_checkbox.pack(side=tk.RIGHT, anchor=tk.W)
 
-# Кнопка "Старт" обучения
+# Training start button
 fc_fit_start_button = tk.Button(
     fc_progress_and_safe_frame,
-    text="Старт",
+    text="Start",
     command=fc_start_fit,
     state=tk.DISABLED,
     anchor=tk.W,
 )
 fc_fit_start_button.pack(side=tk.LEFT, anchor=tk.W)
 
-# Фрейм для прогресс-бара и кнопок
+# Frame for progress bar and buttons
 fc_progress_and_safe_frame = tk.Frame(fc_controls_frame)
 fc_progress_and_safe_frame.pack(pady=10, anchor=tk.W)
 
-# Подпись "Построение нечеткой системы"
+# Label "Building the fuzzy system"
 build_label_fuzzy = tk.Label(
-    fc_progress_and_safe_frame, text="Построение нечеткой системы:"
+    fc_progress_and_safe_frame, text="Building the fuzzy system:"
 )
 build_label_fuzzy.pack(side=tk.TOP, anchor=tk.W)
 
-# Прогресс бар
+# Progress bar
 fc_fit_progress_var = tk.DoubleVar()
 fc_fit_progress_bar = ttk.Progressbar(
     fc_progress_and_safe_frame,
@@ -2864,274 +2847,153 @@ fc_fit_progress_bar = ttk.Progressbar(
 )
 fc_fit_progress_bar.pack(side=tk.LEFT, anchor=tk.W)
 
-# Кнопка "Сохранить нечеткую систему"
+# Save fuzzy system button
 fc_save_button = tk.Button(
     fc_progress_and_safe_frame,
-    text="Сохранить нечеткую систему",
+    text="Save fuzzy system",
     command=fc_save_model,
     state=tk.DISABLED,
 )
 fc_save_button.pack(side=tk.RIGHT, anchor=tk.W)
 
-# Добавление окна с текстом
+# Text widget for the rule base
 fc_result_rulebase_widget = tk.Text(
     fc_controls_frame, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED
 )
 fc_result_rulebase_widget.pack(pady=10, fill=tk.BOTH, expand=True)
 
-# Кнопка для сохранения статистики
+# Button for saving statistics
 fc_save_stat_button = ttk.Button(
     fc_controls_frame,
-    text="Сохранить статистику обучения",
+    text="Save training statistics",
     command=fc_save_all_stats,
     state=tk.DISABLED,
 )
 fc_save_stat_button.pack(pady=10, anchor=tk.W)
 
-# Добавление окна с текстом для информации
+# Text widget for information
 fc_info_widget = tk.Text(fc_frame, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED)
 fc_info_widget.pack(side="top", anchor="w")
 
-# Пакет вложенных вкладок
+# Nested tabs
 nested_notebook_train.pack(expand=1, fill="both")
 
-# Вкладка "Тест"
+# "Test" Tab
 predict_main_tab = ttk.Frame(notebook)
-notebook.add(predict_main_tab, text="Тест")
+notebook.add(predict_main_tab, text="Test")
 
-# Кнопка выбора файла
+# File selection button
 data_button_predict = tk.Button(
     predict_main_tab,
-    text="Выбрать файл с данными для теста",
+    text="Choose test data file",
     command=data_open_file_predict,
     anchor=tk.W,
 )
 data_button_predict.pack(pady=10, anchor=tk.W)
 
-# Вложенные вкладки внутри "Тест"
+# Nested tabs inside "Test"
 nested_notebook_predict = ttk.Notebook(predict_main_tab)
 
-############################################ Вкладка "Нейронная сеть" внутри "Тест"
+############################################ "Neural Network" Tab inside "Test"
 nn_tab_predict = ttk.Frame(nested_notebook_predict)
-nested_notebook_predict.add(nn_tab_predict, text="Нейронная сеть")
+nested_notebook_predict.add(nn_tab_predict, text="Neural Network")
 
-# Создаем фрейм для управления
+# Create a control frame
 nn_frame_predict = ttk.Frame(nn_tab_predict)
 nn_frame_predict.pack(pady=10, anchor=tk.W)
 
-# Создаем фрейм для кнопок и окошек
+# Create a frame for buttons and widgets
 nn_controls_frame_predict = ttk.Frame(nn_frame_predict)
 nn_controls_frame_predict.pack(side="left")
 
-# Кнопка загрузки модели
+# Load model button
 load_nn_model_button = tk.Button(
     nn_controls_frame_predict,
-    text="Загрузить модель",
+    text="Load model",
     command=load_nn_model,
     anchor=tk.W,
 )
 load_nn_model_button.pack(pady=10, anchor=tk.W)
 
-# Кнопка старта теста
+# Test start button
 nn_button_predict = tk.Button(
     nn_controls_frame_predict,
-    text="Запустить тест",
+    text="Start test",
     command=nn_predict,
     anchor=tk.W,
     state=tk.DISABLED,
 )
 nn_button_predict.pack(pady=10, anchor=tk.W)
 
-# Кнопка сохранить прогноз
+# Save prediction button
 nn_button_predict_save = tk.Button(
     nn_controls_frame_predict,
-    text="Сохранить прогноз",
+    text="Save prediction",
     command=nn_save_predict,
     anchor=tk.W,
     state=tk.DISABLED,
 )
 nn_button_predict_save.pack(pady=10, anchor=tk.W)
 
-# Добавление окна с текстом для информации
+# Text widget for information
 nn_info_widget_predict = tk.Text(
     nn_frame_predict, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED
 )
 nn_info_widget_predict.pack(side="top", anchor="w")
 
 
-############################################ Вкладка "Нечеткая система" внутри "Тест"
+############################################ "Fuzzy System" Tab inside "Test"
 fc_tab_predict = ttk.Frame(nested_notebook_predict)
-nested_notebook_predict.add(fc_tab_predict, text="Нечеткая система")
+nested_notebook_predict.add(fc_tab_predict, text="Fuzzy System")
 
-# Создаем фрейм для управления
+# Create a control frame
 fc_frame_predict = ttk.Frame(fc_tab_predict)
 fc_frame_predict.pack(pady=10, anchor=tk.W)
 
-# Создаем фрейм для кнопок и окошек
+# Create a frame for buttons and widgets
 fc_controls_frame_predict = ttk.Frame(fc_frame_predict)
 fc_controls_frame_predict.pack(side="left")
 
-# Кнопка загрузки модели
+# Load model button
 load_fc_model_button = tk.Button(
     fc_controls_frame_predict,
-    text="Загрузить модель",
+    text="Load model",
     command=load_fc_model,
     anchor=tk.W,
 )
 load_fc_model_button.pack(pady=10, anchor=tk.W)
 
-# Кнопка старта теста
+# Test start button
 fc_button_predict = tk.Button(
     fc_controls_frame_predict,
-    text="Запустить тест",
+    text="Start test",
     command=fc_predict,
     anchor=tk.W,
     state=tk.DISABLED,
 )
 fc_button_predict.pack(pady=10, anchor=tk.W)
 
-# Кнопка сохранить прогноз
+# Save prediction button
 fc_button_predict_save = tk.Button(
     fc_controls_frame_predict,
-    text="Сохранить прогноз",
+    text="Save prediction",
     command=fc_save_predict,
     anchor=tk.W,
     state=tk.DISABLED,
 )
 fc_button_predict_save.pack(pady=10, anchor=tk.W)
 
-# Добавление окна с текстом для информации
+# Text widget for information
 fc_info_widget_predict = tk.Text(
     fc_frame_predict, wrap=tk.WORD, height=10, width=40, state=tk.DISABLED
 )
 fc_info_widget_predict.pack(side="top", anchor="w")
 
-
-# Пакет вложенных вкладок внутри "Тест"
+# Package of nested tabs inside "Test"
 nested_notebook_predict.pack(expand=1, fill="both")
 
-# Пакет всех вкладок
+# Package of all tabs
 notebook.pack(expand=1, fill="both")
 
-# Запуск основного цикла
+# Start the main loop
 root.mainloop()
-
-# dir_path = os.path.dirname(os.path.realpath(__file__))
-
-# data_filename = input("data file path:")
-# data = pd.read_csv(data_filename)
-
-# X_ = data.iloc[:, :-1].values
-# y = data.iloc[:, -1].values.astype(int)
-
-# X_scaled = scale(X_)
-# columns = list(data.columns)
-
-# print(X_scaled.shape)
-# print(y.shape)
-# print(columns)
-
-# ngram = int(input("ngram NN:")) # убрать параметр
-# iters = int(input("iters NN:")) #
-# pop_size = int(input("pop_size NN:")) #
-# min_res = int(input("min_res NN:")) # в пределах от 2500
-# max_res = int(input("max_res NN:")) # до бесконечности
-
-# iters_FC = int(input("iters FC:"))
-# pop_size_FC = int(input("pop_size FC:"))
-# min_res_FC = int(input("min_res FC:")) # в пределах от 2500
-# max_res_FC = int(input("max_res FC:")) # до бесконечности
-
-# nn_model = selfCGPNN(
-#     iters=iters,
-#     pop_size=pop_size,
-#     ngram=ngram,
-#     tour_size=3,
-#     min_res=min_res,
-#     max_res=max_res,
-# )
-
-# eye = np.eye(len(set(y)))
-# new_net = nn_model.fit(X_scaled, y)
-# stats = nn_model.stats
-# in_dict = nn_model.in_dict
-
-# predict_train, proba_train = predict_net(nn_model.thefittest["net"], X_scaled)
-
-# f1_score_train = f1_score(y, predict_train, average="macro")
-# acc_train = accuracy_score(y, predict_train)
-# confusion_matrix_train = confusion_matrix(predict_train, y)
-# cat_train = cat_crossentropy2(eye[y], proba_train)
-
-# net = nn_model.thefittest["net"]
-# tree = nn_model.thefittest["individ"]
-
-# fittest_history = np.array(nn_model.fittest_history, dtype=object)
-# fittest_history = pd.DataFrame(
-#     {"tree": fittest_history[:, 0], "fitness": fittest_history[:, 1]}
-# )
-
-# stats = nn_model.stats
-# all_stats = pd.concat(
-#     [
-#         stats["proba"]["mutation"],
-#         stats["proba"]["crossing"],
-#         stats["proba"]["selection"],
-#         stats["fitness"],
-#     ],
-#     axis=1,
-# )
-
-# save_net(
-#     some_net=net,
-#     some_tree=tree,
-#     path="result_net.csv",
-#     train_acc=acc_train,
-#     fitness_hist=fittest_history,
-#     all_stats=all_stats,
-#     ngram=ngram,
-# )
-
-
-# mask = list(net.inputs)
-# mask.sort()
-# X_scaled_NN = X_scaled[:, mask[:-1]]
-# columns_NN = np.array(columns, dtype=object)[mask[:-1]]
-
-# y_NN = net.predict(X_scaled)
-
-
-# nn_model = SelfGPFLClassifier(
-#     iters_FC,
-#     pop_size_FC,
-#     max_height=10,
-#     tour_size=3,
-#     min_res=min_res_FC,
-#     max_res=max_res_FC,
-# )
-# nn_model.init_sets(X_scaled_NN.shape[1], len(set(y_NN)), X_scaled_NN.shape[1] * [3])
-# nn_model.fit(X_scaled_NN, y_NN, X_scaled_NN, y_NN)
-
-# rules = nn_model.thefittest["net"].show_rules()[0]
-
-# final_tree = nn_model.thefittest["individ"]
-# final_dtree = nn_model.thefittest["net"]
-
-# fittest_history = np.array(nn_model.fittest_history, dtype=object)
-# fittest_history = pd.DataFrame(
-#     {"tree": fittest_history[:, 0], "fitness": fittest_history[:, 1]}
-# )
-
-# save_rulebase(
-#     some_rulebase=final_dtree,
-#     some_tree=final_tree,
-#     path="result_base.csv",
-#     fitness_hist=fittest_history["fitness"].values,
-#     tree_hist=fittest_history["tree"].values,
-#     all_stats=all_stats,
-#     columns=columns_NN,
-# )
-
-
-# print(rules)
-# os.system("pause")
