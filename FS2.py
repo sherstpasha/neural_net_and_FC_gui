@@ -2,16 +2,22 @@ import numpy as np
 from sklearn.datasets import load_iris, load_digits, load_diabetes
 from thefittest.tools.transformations import SamplingGrid
 from thefittest.optimizers import SelfCGA
-from sklearn.metrics import f1_score
 from sklearn.metrics import r2_score
-import skfuzzy as fuzz
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import minmax_scale
 
+from typing import Optional
+
+
+def remove_duplicate_rows(arr):
+    # Преобразование каждой строки в упорядоченный кортеж и использование множества для удаления дубликатов
+    unique_rows = np.unique([tuple(row) for row in arr], axis=0)
+    # Воссоздание массива NumPy из уникальных строк
+    return np.array(unique_rows, dtype = np.int64)
 
 class FuzzyRegressor:
-    def __init__(self, iters, pop_size, n_features_fuzzy_sets, n_target_fuzzy_sets, max_rules_in_base, target_grid_volume):
+    def __init__(self, iters, pop_size, n_features_fuzzy_sets, n_target_fuzzy_sets, max_rules_in_base, target_grid_volume = None):
         self.iters = iters
         self.pop_size = pop_size
         self.n_features_fuzzy_sets = n_features_fuzzy_sets
@@ -147,9 +153,7 @@ class FuzzyRegressor:
         
         return cuted_memberships
 
-
-    def fit(self, X, y):
-        y = y.astype(np.float64)
+    def define_sets(self, X, y, set_names: Optional[dict[str, list[str]]] = None, feature_names: Optional[list[str]] = None, target_names: Optional[list[str]] = None):
 
         self.n_features = X.shape[1]
 
@@ -160,10 +164,32 @@ class FuzzyRegressor:
 
         assert self.n_features == len(self.n_features_fuzzy_sets)
 
+
+        if feature_names is None:
+            self.feature_names = [f"X_{i}" for i in range(self.n_features)]
+        else:
+            self.feature_names = feature_names
+
+        if set_names is None:
+            self.set_names = {feature_name: [f"set_{i}" for i in range(n_sets)]
+                         for feature_name, n_sets in zip(self.feature_names, self.n_features_fuzzy_sets)}
+        else:
+            self.set_names = set_names
+
+        if target_names is None:
+            self.target_names = [f"Y_{i}" for i in range(self.n_target_fuzzy_sets)]
+        else:
+            self.target_names = target_names
+
+        if self.target_grid_volume is None:
+            self.target_grid_volume = len(y)
+
         self.create_features_terms(X)
         self.create_target_terms(y)
 
-        # self.interpolate_membership = np.array([self.get_triangular_membership_out(y, term) for term in self.target_terms_point])
+    def fit(self, X, y):
+        y = y.astype(np.float64)
+
         self.interpolate_membership = np.array([self.get_triangular_membership_out(self.target_grid, term) for term in self.target_terms_point])
 
         number_bits = np.array([self.find_number_bits(n_sets + 1)
@@ -185,11 +211,11 @@ class FuzzyRegressor:
 
             for population_g_int_i in population_g_int:
                 rulebase_switch = population_g_int_i.reshape(self.max_rules_in_base, -1)
+                rulebase_switch_u = remove_duplicate_rows(rulebase_switch)
 
-                rulebase, switch = rulebase_switch[:,:-1], rulebase_switch[:,-1]
+                rulebase, switch = rulebase_switch_u[:,:-1], rulebase_switch_u[:,-1]
                 rulebase = rulebase[switch == 1]
-                # rulebase = rulebase.astype(np.int64)
-
+                
                 overborder_cond = rulebase > self.fuzzy_sets_max_value
                 rulebase[overborder_cond] = (rulebase - self.fuzzy_sets_max_value)[overborder_cond]
                 
@@ -215,7 +241,6 @@ class FuzzyRegressor:
                     activation_degrees = np.array([self.inference(self.fuzzification(X, antecedent))
                                                 for antecedent in antecedents])
 
-                    # interpolate_membership = self.interpolate_membership
                     cuted_memberships = self.get_cut(self.interpolate_membership, activation_degrees, consequents)
 
 
@@ -230,10 +255,6 @@ class FuzzyRegressor:
                     y_predict = up/down
 
                     fitness[i] = r2_score(y, y_predict)
-
-                    # print('fitness[i]', fitness[i])
-
-                  
 
             return fitness
 
@@ -270,12 +291,14 @@ class FuzzyRegressor:
 
         y_predict = up/down
 
-        # print(y_predict.shape)
-
         return y_predict
         
-    def get_text_rules(self, set_names: dict[str, list[str]], feature_names: list[str], target_names: list[str]):
-        
+    def get_text_rules(self, print_y_intervals = False):
+
+        print(self.base)
+        print(np.unique(self.base, axis = 1))
+        print(remove_duplicate_rows(self.base))
+
         text_rules = []
         for rule_i in self.base:
             rule_text = "if "
@@ -283,73 +306,48 @@ class FuzzyRegressor:
                 if rule_i_j == self.ignore_terms_id[j]:
                     continue
                 else:
-                    rule_text += f"({feature_names[j]} is {set_names[feature_names[j]][rule_i_j]}) and "
+                    rule_text += f"({self.feature_names[j]} is {self.set_names[self.feature_names[j]][rule_i_j]}) and "
                 
             rule_text = rule_text[:-4]
 
-            rule_text += f"then {target_names[rule_i[-1]]}"
+            if print_y_intervals:
+                rule_text += f"then Y is {self.target_names[rule_i[-1]]} ({self.target_terms_point[rule_i[-1]][0]}, {self.target_terms_point[rule_i[-1]][-1]})"
+            else:
+                rule_text += f"then (Y is {self.target_names[rule_i[-1]]})"
             text_rules.append(rule_text)
         
         return text_rules
 
 
-
-data = load_diabetes()
-
-X = data.data
-y = data.target.astype(np.float64)
-
-# def problem(x):
-#     return np.sin(x[:,0])
+def problem(x):
+    return np.sin(x[:,0])
 
 
-# function = problem
-# left_border = -4.5
-# right_border = 4.5
-# sample_size = 200
-# n_dimension = 1
+function = problem
+left_border = -4.5
+right_border = 4.5
+sample_size = 200
+n_dimension = 1
 
-# X = np.array([np.linspace(left_border, right_border, sample_size)
-#               for _ in range(n_dimension)]).T
-# y = function(X)
-
-# X_scaled = minmax_scale(X)
-# y_scaled = minmax_scale(y)
+X = np.array([np.linspace(left_border, right_border, sample_size)
+              for _ in range(n_dimension)]).T
+y = function(X)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
-# features = data.feature_names
+features = ["x_1"]
+set_names = {str(features[0]): ["Очень маленькое", "Маленькое", "Среднее", "Большое", "Очень большое"]}
+targets = ["y1", "y2", "y3", "y3", "y4"]
 
-# print(features)
-
-# set_names = {str(features[0]): ["Маленькое", "Большое"],
-#              str(features[1]): ["Маленькое", "Среднее"],
-#              str(features[2]): ["Холодное", "Среднее", "Горячее"],
-#              str(features[3]): ["Низкое", "Обычное", "Высокое", "Очень высокое"],
-#              str(features[4]): ["Низкое", "Обычное", "Высокое", "Очень высокое"],
-#              str(features[5]): ["Низкое", "Обычное", "Высокое", "Очень высокое"],
-#              str(features[6]): ["Низкое", "Обычное", "Высокое", "Очень высокое"],
-#              str(features[7]): ["Низкое", "Обычное", "Высокое", "Очень высокое"],
-#              str(features[8]): ["Низкое", "Обычное", "Высокое", "Очень высокое"],
-#              str(features[9]): ["Низкое", "Обычное", "Высокое", "Очень высокое"]}
-
-
-# n_features_fuzzy_sets = [25]
-
-# targets = [f"term{i}" for i in range()]
-
-n_features_fuzzy_sets = [2, 2, 3, 3, 3, 3, 3, 3, 3, 3]
-
-# n_target_fuzzy_sets = 3
-
-model = FuzzyRegressor(iters=200,
+model = FuzzyRegressor(iters=30,
                        pop_size=200,
-                       n_features_fuzzy_sets = n_features_fuzzy_sets,
-                       n_target_fuzzy_sets = 25,
+                       n_features_fuzzy_sets = [5],
+                       n_target_fuzzy_sets = 5,
                        max_rules_in_base = 30,
-                       target_grid_volume = 50,
                        )
 
+
+model.define_sets(X, y, set_names=set_names, feature_names=features, target_names=targets)
 
 model.fit(X_train, y_train)
 
@@ -357,14 +355,14 @@ y_pred = model.predict(X_test)
 
 print("r2_score: ", r2_score(y_test, y_pred))
 
-# text_rules = model.get_text_rules(set_names=set_names, feature_names=features, target_names=targets)
+text_rules = model.get_text_rules()
 
-# print(*text_rules, sep="\n")
+print(*text_rules, sep="\n")
 
 
-# plt.plot(X_scaled[:,0], y_scaled, label = "True y")
-# plt.scatter(X_test[:,0], y_pred, label = "Predict y")
-# plt.legend()
+plt.plot(X[:,0], y, label = "True y")
+plt.scatter(X_test[:,0], y_pred, label = "Predict y")
+plt.legend()
 
-# plt.tight_layout()
-# plt.savefig("test.png")
+plt.tight_layout()
+plt.savefig("test.png")

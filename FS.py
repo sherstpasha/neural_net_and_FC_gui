@@ -4,6 +4,8 @@ from thefittest.tools.transformations import SamplingGrid
 from thefittest.optimizers import SelfCGA
 from sklearn.metrics import f1_score
 
+from typing import Optional
+
 
 class FuzzyClassifier:
     def __init__(self, iters, pop_size, n_features_fuzzy_sets, max_rules_in_base):
@@ -85,19 +87,39 @@ class FuzzyClassifier:
             membership_triangular[:,i][r_mask] = (1 - (X[:,i] - center)/r_down)[r_mask]
         
         return membership_triangular
-        
-    def fit(self, X, y):
-        y = y.astype(np.int64)
+
+    def define_sets(self, X, y, set_names: Optional[dict[str, list[str]]] = None, feature_names: Optional[list[str]] = None, target_names: Optional[list[str]] = None):
 
         self.n_features = X.shape[1]
         self.n_classes = len(np.unique(y))
+
         self.n_features_fuzzy_sets_classes = self.n_features_fuzzy_sets + [self.n_classes]
         self.fuzzy_sets_max_value = np.array(self.n_features_fuzzy_sets_classes)
         self.fuzzy_sets_max_value[-1] = self.fuzzy_sets_max_value[-1] - 1
 
         assert self.n_features == len(self.n_features_fuzzy_sets)
 
+        if feature_names is None:
+            self.feature_names = [f"X_{i}" for i in range(self.n_features)]
+        else:
+            self.feature_names = feature_names
+
+        if set_names is None:
+            self.set_names = {feature_name: [f"set_{i}" for i in range(n_sets)]
+                         for feature_name, n_sets in zip(self.feature_names, self.n_features_fuzzy_sets)}
+        else:
+            self.set_names = set_names
+
+        if target_names is None:
+            self.target_names = [f"Y_{i}" for i in range(self.n_classes)]
+        else:
+            self.target_names = target_names
+
         self.create_features_terms(X)
+
+
+    def fit(self, X, y):
+        y = y.astype(np.int64)
 
         number_bits = np.array([self.find_number_bits(n_sets + 1)
                                 for n_sets in self.n_features_fuzzy_sets_classes + [1]]*self.max_rules_in_base, dtype = np.int64)
@@ -185,8 +207,8 @@ class FuzzyClassifier:
         return y_predict
 
         
-    def get_text_rules(self, set_names: dict[str, list[str]], feature_names: list[str], target_names: list[str]):
-        
+    def get_text_rules(self):
+
         text_rules = []
         for rule_i in self.base:
             rule_text = "if "
@@ -194,11 +216,11 @@ class FuzzyClassifier:
                 if rule_i_j == self.ignore_terms_id[j]:
                     continue
                 else:
-                    rule_text += f"({feature_names[j]} is {set_names[feature_names[j]][rule_i_j]}) and "
+                    rule_text += f"({self.feature_names[j]} is {self.set_names[self.feature_names[j]][rule_i_j]}) and "
                 
             rule_text = rule_text[:-4]
 
-            rule_text += f"then {target_names[rule_i[-1]]}"
+            rule_text += f"then class is {self.target_names[rule_i[-1]]}"
             text_rules.append(rule_text)
         
         return text_rules
@@ -210,29 +232,28 @@ X = data.data
 y = data.target.astype(np.int64)
 
 
-targets = data.target_names
-features = data.feature_names
-
-set_names = {str(features[0]): ["Маленькое", "Большое"],
-             str(features[1]): ["Маленькое", "Среднее", "Большое"],
-             str(features[2]): ["Холодное", "Среднее", "Горячее"],
-             str(features[3]): ["Низкое", "Обычное", "Высокое", "Очень высокое"]}
-
-
-n_features_fuzzy_sets = [2, 3, 3, 4]
-
 model = FuzzyClassifier(iters=20,
                         pop_size=200,
-                        n_features_fuzzy_sets = n_features_fuzzy_sets,
+                        n_features_fuzzy_sets = [3, 2, 4, 2],
                         max_rules_in_base=10)
+set_names = {data.feature_names[0]: ["Маленький", "Средний", "Сильный"],
+             data.feature_names[1]: ["Маленький", "Сильный"],
+             data.feature_names[2]: ["Маленький", "Средний", "Сильный", "Очень сильный"],
+             data.feature_names[3]: ["Средний", "Сильный"]}
+
+model.define_sets(X, y, set_names = set_names, feature_names=data.feature_names, target_names=data.target_names)
+
+print(model.feature_names)
+print(model.set_names)
+print(model.target_names)
 
 
 model.fit(X, y)
 
-y_pred = model.predict(X)
+# y_pred = model.predict(X)
 
-print(f1_score(y, y_pred, average='macro'))
+# print(f1_score(y, y_pred, average='macro'))
 
-text_rules = model.get_text_rules(set_names=set_names, feature_names=features, target_names=targets)
+text_rules = model.get_text_rules()
 
 print(*text_rules, sep="\n")
