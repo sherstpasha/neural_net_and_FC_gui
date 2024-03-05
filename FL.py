@@ -31,6 +31,7 @@ class FuzzyBase:
         return number_bits
     
     def create_features_terms(self, X):
+
         self.features_terms_point = []
         self.ignore_terms_id = []
 
@@ -239,7 +240,8 @@ class FuzzyClassifier(FuzzyBase):
                             iters=self.iters,
                             pop_size=self.pop_size,
                             str_len=sum(grid.parts),
-                            show_progress_each=1)
+                            # show_progress_each=1
+                            )
         
         optimizer.fit()
 
@@ -497,66 +499,31 @@ class FuzzyRegressor(FuzzyBase):
             text_rules.append(rule_text)
         
         return text_rules
-        
-
-# from sklearn.datasets import load_iris
 
 
-# data = load_iris()
-# X = data.data
-# y = data.target.astype(np.int64)
+
+# import pandas as pd
+# from sklearn.preprocessing import LabelEncoder
+
+# from sklearn.preprocessing import MinMaxScaler
+
+# data = pd.read_csv("test_dataset/seeds_train.csv")
+
+# X = data.iloc[:,:-1].values.astype(np.float64)
+
+# labels = data.iloc[:,-1]
+
+# le = LabelEncoder()
+# mms = MinMaxScaler()
 
 
-# model = FuzzyClassifier(iters=200,
-#                         pop_size=200,
-#                         n_features_fuzzy_sets = [5, 5, 5, 5],
-#                         max_rules_in_base=10)
+# X = mms.fit_transform(X)
+# y = le.fit_transform(labels).astype(np.int64)
+
+# model = FuzzyClassifier(100, 100, [3]*X.shape[1], max_rules_in_base=15)
+
+# print(X.shape, y.shape)
 
 # model.define_sets(X, y)
 
 # model.fit(X, y)
-
-# text_rules = model.get_text_rules()
-
-# print(*text_rules, sep="\n")
-
-
-from sklearn.datasets import load_diabetes
-
-
-# def problem(x):
-#     return np.sin(x[:,0])
-
-
-# function = problem
-# left_border = -4.5
-# right_border = 4.5
-# sample_size = 200
-# n_dimension = 1
-
-# X = np.array([np.linspace(left_border, right_border, sample_size)
-#               for _ in range(n_dimension)]).T
-# y = function(X)
-
-data = load_diabetes()
-X = data.data
-y = data.target.astype(np.float64)
-
-model = FuzzyRegressor(iters=200,
-                       pop_size=200,
-                       n_features_fuzzy_sets = [4]*X.shape[1],
-                       n_target_fuzzy_sets = 25,
-                       max_rules_in_base = 50,
-                       )
-
-model.define_sets(X, y)
-
-model.fit(X, y)
-
-y_pred = model.predict(X)
-
-print("r2_score: ", r2_score(y, y_pred))
-
-text_rules = model.get_text_rules()
-
-print(*text_rules, sep="\n")
