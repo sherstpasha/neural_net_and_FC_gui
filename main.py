@@ -1,3 +1,7 @@
+import os
+from datetime import datetime
+import pickle
+
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
@@ -7,24 +11,54 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import f1_score
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 
 from thefittest.classifiers import GeneticProgrammingNeuralNetClassifier
+from thefittest.regressors import GeneticProgrammingNeuralNetRegressor
 from thefittest.optimizers import SelfCGP
 from thefittest.optimizers import SelfCGA
 from thefittest.tools.print import print_net
 
 from FL import FuzzyClassifier
+from FL import FuzzyRegressor
 
 from threading import Thread
 from collections import defaultdict
 
+import matplotlib.pyplot as plt
 
-class CSVProcessorApp:
+from warnings import filterwarnings
+
+filterwarnings("ignore")
+
+
+def write_to_file(file_path, content):
+    with open(file_path, 'w') as file:
+        file.write(content)
+
+def create_folder(prefix, base_path):
+    current_time = datetime.now().strftime("%d_%m_%y_%H_%M_%S")
+    folder_name = f"{prefix}_{current_time}"
+    folder_path = os.path.join(base_path, folder_name)
+    
+    # Проверяем, существует ли папка по указанному пути
+    if os.path.exists(folder_path):
+        # Если папка существует, добавляем числовой суффикс
+        suffix = 1
+        while os.path.exists(f"{folder_path} ({suffix})"):
+            suffix += 1
+        folder_path = f"{folder_path} ({suffix})"
+    
+    # Создаем папку
+    os.makedirs(folder_path)
+    
+    return folder_path
+
+class FFNNApp:
     def __init__(self, master):
         self.master = master
-        self.master.title("CSV Data Processor")
+        self.master.title("FFNNApp")
         self.master.geometry("1000x700")
 
         self.canvas = tk.Canvas(self.master)
@@ -62,10 +96,10 @@ class CSVProcessorApp:
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def open_file(self):
-        file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
-        if file_path:
+        self.data_file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
+        if self.data_file_path:
             try:
-                self.df = pd.read_csv(file_path)
+                self.df = pd.read_csv(self.data_file_path)
                 self.show_data_window()
                 self.open_button.destroy()
             except Exception as e:
@@ -231,13 +265,13 @@ class CSVProcessorApp:
 
     def create_third_window_content(self):
         # Создаем entry объекты для ввода параметров нейронной сети
-        self.iteration_var = tk.StringVar(value="10")
+        self.iteration_var = tk.StringVar(value="50")
         iteration_label = tk.Label(self.third_window, text="Количество итераций:")
         iteration_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         self.iteration_entry = tk.Entry(self.third_window, textvariable=self.iteration_var)
         self.iteration_entry.grid(row=0, column=1, padx=5, pady=5)
 
-        self.population_size_var = tk.StringVar(value="10")
+        self.population_size_var = tk.StringVar(value="25")
         population_size_label = tk.Label(self.third_window, text="Размер популяции:")
         population_size_label.grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         self.population_size_entry = tk.Entry(self.third_window, textvariable=self.population_size_var)
@@ -249,13 +283,13 @@ class CSVProcessorApp:
         self.tournament_size_entry = tk.Entry(self.third_window, textvariable=self.tournament_size_var)
         self.tournament_size_entry.grid(row=2, column=1, padx=5, pady=5)
 
-        self.weight_iteration_var = tk.StringVar(value="15")
+        self.weight_iteration_var = tk.StringVar(value="100")
         weight_iteration_label = tk.Label(self.third_window, text="Количество итераций для настройки весов:")
         weight_iteration_label.grid(row=3, column=0, padx=5, pady=5, sticky=tk.W)
         self.weight_iteration_entry = tk.Entry(self.third_window, textvariable=self.weight_iteration_var)
         self.weight_iteration_entry.grid(row=3, column=1, padx=5, pady=5)
 
-        self.weight_population_size_var = tk.StringVar(value="15")
+        self.weight_population_size_var = tk.StringVar(value="100")
         weight_population_size_label = tk.Label(self.third_window, text="Размер популяции для настройки весов:")
         weight_population_size_label.grid(row=4, column=0, padx=5, pady=5, sticky=tk.W)
         self.weight_population_size_entry = tk.Entry(self.third_window, textvariable=self.weight_population_size_var)
@@ -291,14 +325,14 @@ class CSVProcessorApp:
 
     def create_fourth_window_content(self):
         # a. Определение количества итераций (по стандарту 100)
-        self.fs_iteration_var = tk.StringVar(value="30")
+        self.fs_iteration_var = tk.StringVar(value="200")
         fs_iteration_label = tk.Label(self.fourth_window, text="Количество итераций:")
         fs_iteration_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         self.fs_iteration_entry = tk.Entry(self.fourth_window, textvariable=self.fs_iteration_var)
         self.fs_iteration_entry.grid(row=0, column=1, padx=5, pady=5)
 
         # b. Установка размера популяции (по стандарту 100)
-        self.fs_population_size_var = tk.StringVar(value="30")
+        self.fs_population_size_var = tk.StringVar(value="200")
         fs_population_size_label = tk.Label(self.fourth_window, text="Размер популяции:")
         fs_population_size_label.grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         self.fs_population_size_entry = tk.Entry(self.fourth_window, textvariable=self.fs_population_size_var)
@@ -312,7 +346,7 @@ class CSVProcessorApp:
         self.fs_tournament_size_entry.grid(row=2, column=1, padx=5, pady=5)
 
         # d. Максимальное количество правил (по стандарту 15)
-        self.fs_max_rules_var = tk.StringVar(value="15")
+        self.fs_max_rules_var = tk.StringVar(value="30")
         fs_max_rules_label = tk.Label(self.fourth_window, text="Максимальное количество правил:")
         fs_max_rules_label.grid(row=2, column=0, padx=5, pady=5, sticky=tk.W)
         self.fs_max_rules_entry = tk.Entry(self.fourth_window, textvariable=self.fs_max_rules_var)
@@ -389,8 +423,8 @@ class CSVProcessorApp:
         choose_folder_button = tk.Button(self.fifth_window, text="Выбрать папку сохранения статистики", command=self.choose_save_folder)
         choose_folder_button.pack(pady=(10, 0))
 
-        apply_button = tk.Button(self.fifth_window, text="Применить", command=self.run_processing)
-        apply_button.pack(pady=(10, 20))
+        self.apply_button = tk.Button(self.fifth_window, text="Запуск", command=self.run_processing, state=tk.DISABLED)
+        self.apply_button.pack(pady=(10, 20))
 
         # Добавляем кнопку "Назад" для возврата к третьему окну
         back_button = tk.Button(self.fifth_window, text="Назад", command=self.back_to_fourth_window)
@@ -398,6 +432,7 @@ class CSVProcessorApp:
 
     def choose_save_folder(self):
         self.save_folder_path = filedialog.askdirectory()
+        self.apply_button.config(state=tk.NORMAL)
         print(f"Выбранная папка для сохранения: {self.save_folder_path}")
 
     def back_to_fourth_window(self):
@@ -423,6 +458,20 @@ class CSVProcessorApp:
     def run_processing(self):
         # Здесь вы можете получить значения параметров
 
+        data_name = os.path.basename(self.data_file_path)
+
+        self.apply_button.config(state=tk.DISABLED)
+        folder_path = create_folder(data_name+"_запуск", self.save_folder_path)
+        
+
+        print(folder_path)
+
+        folder_nets_png_path = create_folder("nets_png", folder_path)
+        folder_nets_pkl_path = create_folder("nets_pkl", folder_path)
+        folder_fuzzy_systems_pkl_path = create_folder("fuzzy_systems_pkl", folder_path)
+        folder_fuzzy_systems_base_path = create_folder("fuzzy_systems_base", folder_path)
+        folder_fuzzy_systems_Xnn_path = create_folder("fuzzy_systems_Xnn_pkl", folder_path)
+        folder_fuzzy_systems_Xnn_base_path = create_folder("fuzzy_systems_Xnn_base", folder_path)
 
         def run():
             self.nn_iteration_value = int(self.get_iteration_value())
@@ -454,18 +503,13 @@ class CSVProcessorApp:
             X = self.modified_df.loc[:,self.numeric_variables + self.categorical_after_modified].values
             y = self.modified_df.loc[:,self.target_variable].values
 
+            n_vars = X.shape[1]
+
             print("Запуск")
-            # stats = {"f1(y_train, y_NN_train)": [],
-            #          "f1(y_test, y_NN_test)": [],
-            #          "f1(y_train, y_FS_train)": [],
-            #          "f1(y_test, y_FS_test)": [],
-                    #  "f1(y_NN_train, y_FS_train)": [],
-                    #  "f1(y_NN_test, y_FS_test)": [],
-                    #  "f1(y_train, y_FS_train)": [],
-                    #  "f1(y_test, y_FS_test)": [],
-                    #  }
             
             stats = defaultdict(list)
+
+            stats_fs = defaultdict(list)
 
             predict_train_stats = defaultdict(list)
             predict_test_stats = defaultdict(list)
@@ -499,7 +543,7 @@ class CSVProcessorApp:
                                                                             },
                                                                             weights_optimizer=SelfCGA,
                                                                             weights_optimizer_args={"iters": self.nn_weight_iteration_value,
-                                                                            "pop_size": self.nn_weight_population_size_value})
+                                                                            "pop_size": self.nn_weight_population_size_value}, cache=False)
                     nn_model.fit(X_train_scaled, y_train_prep)
 
                     y_NN_train = nn_model.predict(X_train_scaled)
@@ -525,6 +569,11 @@ class CSVProcessorApp:
 
                     fs_model.fit(X_train_scaled, y_train_prep)
 
+                    with open(folder_fuzzy_systems_pkl_path + f"/fs_model_{i}.pkl", "wb") as file:  
+                        pickle.dump(fs_model, file)
+
+                    write_to_file(folder_fuzzy_systems_base_path + f"/fs_base_{i}.txt", fs_model.get_text_rules())
+
                     y_FS_train = fs_model.predict(X_train_scaled)
                     y_FS_test = fs_model.predict(X_test_scaled)
 
@@ -538,11 +587,16 @@ class CSVProcessorApp:
                     predict_test_stats[f"y_FS_test_{i}"] = y_FS_test
 
                     net = nn_model.get_net()
+
+                    print_net(net)
+                    plt.savefig(folder_nets_png_path + f'/net_{i}.png')
+                    plt.close()
+
+                    with open(folder_nets_pkl_path + f"/net_{i}.pkl", "wb") as file:  
+                        pickle.dump(net, file)
                     
-                    mask = list(net._inputs)
+                    mask = [inp for inp in net._inputs if inp < n_vars]
                     mask.sort()
-                    mask = mask[:-1]
-                    print(mask)
 
                     X_NN_train = X_train_scaled[:, mask]
                     X_NN_test = X_test_scaled[:, mask]
@@ -555,16 +609,21 @@ class CSVProcessorApp:
                         if key in feature_names_NN:
                             variables_NN[key] = value
 
-                    fcnn_model = FuzzyClassifier(iters=self.fc_iteration_value,
+                    fsnn_model = FuzzyClassifier(iters=self.fc_iteration_value,
                                                  pop_size=self.fc_population_size_value,
                                                  n_features_fuzzy_sets=[len(value) for key, value in variables_NN.items()],
                                                  max_rules_in_base=self.fc_max_rules_value)
-                    fcnn_model.define_sets(X_NN_train, y_NN_train, set_names=variables_NN, feature_names=feature_names_NN, target_names=list(target.values())[0])
+                    fsnn_model.define_sets(X_NN_train, y_NN_train, set_names=variables_NN, feature_names=feature_names_NN, target_names=list(target.values())[0])
 
-                    fcnn_model.fit(X_NN_train, y_NN_train)
+                    fsnn_model.fit(X_NN_train, y_NN_train)
 
-                    y_NN_FS_train = fcnn_model.predict(X_NN_train)
-                    y_NN_FSNN_test = fcnn_model.predict(X_NN_test)
+                    with open(folder_fuzzy_systems_Xnn_path + f"/fsnn_model_{i}.pkl", "wb") as file:  
+                        pickle.dump(fsnn_model, file)
+
+                    write_to_file(folder_fuzzy_systems_Xnn_base_path + f"/fsnn_base_{i}.txt", fsnn_model.get_text_rules())
+
+                    y_NN_FS_train = fsnn_model.predict(X_NN_train)
+                    y_NN_FSNN_test = fsnn_model.predict(X_NN_test)
 
                     f1_train_y_NN_train_y_NN_FS_train = f1_score(y_NN_train, y_NN_FS_train, average="macro")
                     f1_test_y_NN_test_y_NN_FSNN_test = f1_score(y_NN_test, y_NN_FSNN_test, average="macro")
@@ -580,52 +639,143 @@ class CSVProcessorApp:
 
                     stats["f1(y_train, y_NN_FS_train)"].append(f1_train_y_train_y_NN_FS_train)
                     stats["f1(y_test, y_NN_FSNN_test)"].append(f1_test_y_test_y_NN_FSNN_test)
-
-
                 else:
-                    y_train_prep = target_scaler.fit_transform(y_train)
-                    y_test_pred = target_scaler.transform(y_test)
+                    y_train_prep = target_scaler.fit_transform(y_train.reshape(-1, 1))[:,0]
+                    y_test_pred = target_scaler.transform(y_test.reshape(-1, 1))[:,0]
+
+                    predict_train_stats[f"y_train_{i}"] = y_train_prep
+                    predict_test_stats[f"y_test_{i}"] = y_test_pred
+
+                    nn_model = GeneticProgrammingNeuralNetRegressor(iters=self.nn_iteration_value,
+                                                            pop_size=self.nn_population_size_value,
+                                                            optimizer=SelfCGP,
+                                                            optimizer_args={"tour_size": self.nn_tournament_size_value,
+                                                                            # "show_progress_each": 1
+                                                                            },
+                                                                            weights_optimizer=SelfCGA,
+                                                                            weights_optimizer_args={"iters": self.nn_weight_iteration_value,
+                                                                            "pop_size": self.nn_weight_population_size_value}, cache=False)
+                    
+                    nn_model.fit(X_train_scaled, y_train_prep)
+
+                    y_NN_train = nn_model.predict(X_train_scaled)
+                    y_NN_test = nn_model.predict(X_test_scaled)
+
+                    r2_train_y_train_y_NN_train = r2_score(y_train_prep, y_NN_train)
+                    r2_test_y_test_y_NN_test = r2_score(y_test_pred, y_NN_test)
+
+                    stats["r2(y_train, y_NN_train)"].append(r2_train_y_train_y_NN_train)
+                    stats["r2(y_test, y_NN_test)"].append(r2_test_y_test_y_NN_test)
+
+                    predict_train_stats[f"y_NN_train_{i}"] = y_NN_train
+                    predict_test_stats[f"y_NN_test_{i}"] = y_NN_test
+
+
+                    feature_names = list(variables.keys())
+                    target_names=list(target.values())[0]
+
+                    fs_model = FuzzyRegressor(iters=self.fc_iteration_value,
+                                            pop_size=self.fc_population_size_value,
+                                            n_features_fuzzy_sets=[len(value) for key, value in variables.items()],
+                                            n_target_fuzzy_sets=len(target_names),
+                                            max_rules_in_base=self.fc_max_rules_value,
+                                            target_grid_volume=100)
 
                     
+                    fs_model.define_sets(X_train_scaled, y_train_prep, set_names=variables, feature_names=feature_names, target_names=target_names)
+
+                    fs_model.fit(X_train_scaled, y_train_prep)
+
+                    with open(folder_fuzzy_systems_pkl_path + f"/fs_model_{i}.pkl", "wb") as file:  
+                        pickle.dump(fs_model, file)
+
+                    write_to_file(folder_fuzzy_systems_base_path + f"/fs_base_{i}.txt", fs_model.get_text_rules())
+
+                    y_FS_train = fs_model.predict(X_train_scaled)
+                    y_FS_test = fs_model.predict(X_test_scaled)
+
+                    r2_train_y_train_y_FS_train = r2_score(y_train_prep, y_FS_train)
+                    r2_test_y_test_y_FS_test = r2_score(y_test_pred, y_FS_test)
+
+                    stats["r2(y_train, y_FS_train)"].append(r2_train_y_train_y_FS_train)
+                    stats["r2(y_test, y_FS_test)"].append(r2_test_y_test_y_FS_test)
+
+                    predict_train_stats[f"y_FS_train_{i}"] = y_FS_train
+                    predict_test_stats[f"y_FS_test_{i}"] = y_FS_test
+
+                    net = nn_model.get_net()
+
+                    print_net(net)
+                    plt.savefig(folder_nets_png_path + f'/net_{i}.png')
+                    plt.close()
+
+                    with open(folder_nets_pkl_path + f"/net_{i}.pkl", "wb") as file:  
+                        pickle.dump(net, file)
+
+                    mask = [inp for inp in net._inputs if inp < n_vars]
+                    mask.sort()
+
+                    X_NN_train = X_train_scaled[:, mask]
+                    X_NN_test = X_test_scaled[:, mask]
+                    feature_names_NN = [feature_names[mask_i] for feature_name, mask_i in zip(feature_names, mask)]
+                    
+                    variables_NN = {}
+
+                    for key, value in variables.items():
+                        if key in feature_names_NN:
+                            variables_NN[key] = value
+
+                    fsnn_model = FuzzyRegressor(iters=self.fc_iteration_value,
+                                                pop_size=self.fc_population_size_value,
+                                                n_features_fuzzy_sets=[len(value) for key, value in variables_NN.items()],
+                                                n_target_fuzzy_sets=len(target_names),
+                                                max_rules_in_base=self.fc_max_rules_value)
+                    fsnn_model.define_sets(X_NN_train, y_NN_train, set_names=variables_NN, feature_names=feature_names_NN, target_names=list(target.values())[0])
+
+                    fsnn_model.fit(X_NN_train, y_NN_train)
+
+                    with open(folder_fuzzy_systems_Xnn_path + f"/fsnn_model_{i}.pkl", "wb") as file:  
+                        pickle.dump(fsnn_model, file)
+
+                    write_to_file(folder_fuzzy_systems_Xnn_base_path + f"/fsnn_base_{i}.txt", fsnn_model.get_text_rules())
+
+                    y_NN_FS_train = fsnn_model.predict(X_NN_train)
+                    y_NN_FSNN_test = fsnn_model.predict(X_NN_test)
+
+                    r2_train_y_NN_train_y_NN_FS_train = r2_score(y_NN_train, y_NN_FS_train)
+                    r2_test_y_NN_test_y_NN_FSNN_test = r2_score(y_NN_test, y_NN_FSNN_test)
+
+                    stats["r2(y_NN_train, y_NN_FS_train)"].append(r2_train_y_NN_train_y_NN_FS_train)
+                    stats["r2(y_NN_test, y_NN_FSNN_test)"].append(r2_test_y_NN_test_y_NN_FSNN_test)
+                    
+                    predict_train_stats[f"y_NN_FS_train{i}"] = y_NN_FS_train
+                    predict_test_stats[f"y_NN_FSNN_test{i}"] = y_NN_FSNN_test
+
+                    r2_train_y_train_y_NN_FS_train = r2_score(y_train_prep, y_NN_FS_train)
+                    r2_test_y_test_y_NN_FSNN_test = r2_score(y_test_pred, y_NN_FSNN_test)
+
+                    stats["f1(y_train, y_NN_FS_train)"].append(r2_train_y_train_y_NN_FS_train)
+                    stats["f1(y_test, y_NN_FSNN_test)"].append(r2_test_y_test_y_NN_FSNN_test)
 
                 print(f"Прогон {i} закончен")
-            
-        
-            stat_df = pd.DataFrame(stats)
-            # # print(predict_train_stats)
-            # for i in predict_train_stats:
-            #     print(len(predict_train_stats))
-            # predict_train_stats_df = pd.DataFrame(predict_train_stats)
-            # predict_test_stats_df = pd.DataFrame(predict_test_stats)
+                        
+                stat_df = pd.DataFrame(stats)
+                stats_fs[f"fs_base_len"].append(len(fs_model.base))
+                stats_fs[f"fsnn_base_len"].append(len(fsnn_model.base))
+                stats_fs[f"fs_base_mean_antecedents"].append(sum(fs_model.count_antecedents())/len(fs_model.count_antecedents()))
+                stats_fs[f"fsnn_base_mean_antecedents"].append(sum(fsnn_model.count_antecedents())/len(fsnn_model.count_antecedents()))
 
-            print(stat_df)
-            print(predict_train_stats)
-            print(predict_test_stats)
+            stat_df.to_excel(folder_path + f"/f1_r2_stats.xlsx")
+            stats_fs_df = pd.DataFrame(stats_fs)
+            stats_fs_df.to_excel(folder_path + f"/fs_fsnn_stats.xlsx")
+            predict_train_stats.to_excel(folder_path + f"/predict_train_stats.xlsx")
+            predict_test_stats.to_excel(folder_path + f"/predict_test_stats.xlsx")
+
+            self.apply_button.config(state=tk.NORMAL)
 
         algorithm_thread = Thread(target=run)
         algorithm_thread.start()
 
-            
-            
-            
-            
-
-
-        # print(X.shape, y.shape)
-
-        # self.scaler = StandardScaler()
-        # self.label_encoder = LabelEncoder()
-
-
-
-
-
-        # self.X_scaled = self.scaler.fit_transform(X)
-
-        # if self.task_type.get() == "classification":
-            
-            #  self.y_train = self.label_encoder_train_data.fit_transform(self.labels_train)
-        
 
 
     def get_iteration_value(self):
@@ -649,5 +799,5 @@ class CSVProcessorApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = CSVProcessorApp(root)
+    app = FFNNApp(root)
     root.mainloop()

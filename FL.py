@@ -279,7 +279,22 @@ class FuzzyClassifier(FuzzyBase):
             rule_text += f"then class is {self.target_names[rule_i[-1]]}"
             text_rules.append(rule_text)
         
+        text_rules = '\n'.join(text_rules)
         return text_rules
+    
+    def count_antecedents(self):
+        antecedent_counts = []
+
+        for rule_i in self.base:
+            antecedent_count = 0
+
+            for j, rule_i_j in enumerate(rule_i[:-1]):
+                if rule_i_j != self.ignore_terms_id[j]:
+                    antecedent_count += 1
+
+            antecedent_counts.append(antecedent_count)
+
+        return antecedent_counts
 
 
 class FuzzyRegressor(FuzzyBase):
@@ -325,6 +340,7 @@ class FuzzyRegressor(FuzzyBase):
     
     def get_cut(self, interpolate_membership, activation_degrees, consequents):
 
+        consequents = consequents.astype(np.int64)
         interpolate_membership_consequents = interpolate_membership[consequents]
         cuted_memberships = np.fmin(interpolate_membership_consequents[:,:,np.newaxis], activation_degrees[:,np.newaxis])
         
@@ -417,12 +433,14 @@ class FuzzyRegressor(FuzzyBase):
 
             for i, rulebase_i in enumerate(population_ph):
                 antecedents, consequents = rulebase_i[:,:-1], rulebase_i[:,-1]
+
                 n_rules = len(rulebase_i)
 
                 if n_rules < 1:
                     fitness[i] = -np.inf
                     continue
                 else:
+                    pass
 
                     activation_degrees = np.array([self.inference(self.fuzzification(X, antecedent))
                                                 for antecedent in antecedents])
@@ -439,8 +457,10 @@ class FuzzyRegressor(FuzzyBase):
                     down[down == 0] = 1
 
                     y_predict = up/down
+                    n_rules_fine = (n_rules/self.max_rules_in_base)*1e-10
 
-                    fitness[i] = r2_score(y, y_predict)
+                    fitness[i] = r2_score(y, y_predict) - n_rules_fine 
+
 
             return fitness
 
@@ -449,7 +469,8 @@ class FuzzyRegressor(FuzzyBase):
                             iters=self.iters,
                             pop_size=self.pop_size,
                             str_len=sum(grid.parts),
-                            show_progress_each=1)
+                            # show_progress_each=1
+                            )
         
         optimizer.fit()
 
@@ -476,7 +497,6 @@ class FuzzyRegressor(FuzzyBase):
         down[down == 0] = 1
 
         y_predict = up/down
-
         return y_predict
         
     def get_text_rules(self, print_y_intervals = False):
@@ -498,8 +518,22 @@ class FuzzyRegressor(FuzzyBase):
                 rule_text += f"then (Y is {self.target_names[rule_i[-1]]})"
             text_rules.append(rule_text)
         
+        text_rules = '\n'.join(text_rules)
         return text_rules
 
+    def count_antecedents(self):
+        antecedent_counts = []
+
+        for rule_i in self.base:
+            antecedent_count = 0
+
+            for j, rule_i_j in enumerate(rule_i[:-1]):
+                if rule_i_j != self.ignore_terms_id[j]:
+                    antecedent_count += 1
+
+            antecedent_counts.append(antecedent_count)
+
+        return antecedent_counts
 
 
 # import pandas as pd
@@ -507,23 +541,60 @@ class FuzzyRegressor(FuzzyBase):
 
 # from sklearn.preprocessing import MinMaxScaler
 
-# data = pd.read_csv("test_dataset/seeds_train.csv")
+# data = pd.read_csv("test_dataset/abalone_train_cut.csv")
 
-# X = data.iloc[:,:-1].values.astype(np.float64)
+# X = data.iloc[:,:-1]
 
-# labels = data.iloc[:,-1]
+# X = pd.get_dummies(X, columns=["Sex"]).values.astype(np.float64)
+
+# labels = data.iloc[:,-1].values
 
 # le = LabelEncoder()
 # mms = MinMaxScaler()
-
+# mms2 = MinMaxScaler()
 
 # X = mms.fit_transform(X)
-# y = le.fit_transform(labels).astype(np.int64)
+# y = mms2.fit_transform(labels.reshape(-1, 1))[:,0].astype(np.float64)
 
-# model = FuzzyClassifier(100, 100, [3]*X.shape[1], max_rules_in_base=15)
+# from thefittest.regressors import GeneticProgrammingNeuralNetRegressor#
+# from thefittest.optimizers import SelfCGA, SelfCGP
+# from sklearn.metrics import r2_score
 
-# print(X.shape, y.shape)
+
+# # nn_model = GeneticProgrammingNeuralNetRegressor(iters=10,
+# #                                                             pop_size=10,
+# #                                                             optimizer=SelfCGP,
+# #                                                             optimizer_args={"tour_size": 5,
+# #                                                                             "show_progress_each": 1
+# #                                                                             },
+# #                                                                             weights_optimizer=SelfCGA,
+# #                                                                             weights_optimizer_args={"iters": 200,
+# #                                                                             "pop_size": 200})
+
+# # nn_model.fit(X, y)
+
+
+# # y_Pred = nn_model.predict(X)
+
+# # print(r2_score(y_Pred, y))
+
+
+# model = FuzzyRegressor(iters=100,
+#                        pop_size=100,
+#                        n_features_fuzzy_sets=[3]*X.shape[1],
+#                        n_target_fuzzy_sets=15,
+#                        max_rules_in_base=15)
+
+# # print(X.shape, y.shape)
 
 # model.define_sets(X, y)
-
+# # 
 # model.fit(X, y)
+
+# y_Pred = model.predict(X)
+
+# print(r2_score(y, y_Pred))
+
+# print(model.get_text_rules())
+
+# print(model.count_antecedents())
