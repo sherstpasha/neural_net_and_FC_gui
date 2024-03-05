@@ -377,7 +377,7 @@ class FFNNApp:
         for variable in self.numeric_variables:
             fuzzy_text += f"{variable}: Низкое, Среднее, Высокое\n"
         for variable in self.categorical_after_modified:
-            fuzzy_text += f"{variable}: Да, Нет\n"
+            fuzzy_text += f"{variable}: Нет, Да\n"
         if self.target_variable:
             if self.task_type.get() == "classification":
                 unique_values = self.df[self.target_variable].unique()
@@ -772,6 +772,8 @@ class FFNNApp:
             predict_test_stats.to_excel(folder_path + f"/predict_test_stats.xlsx")
 
             self.apply_button.config(state=tk.NORMAL)
+
+            print("Программа завершила работу")
 
         algorithm_thread = Thread(target=run)
         algorithm_thread.start()
